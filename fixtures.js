@@ -222,7 +222,9 @@ function createFixtureCard(matchId, teamAId, teamBId, alloc) {
 
   var btm = document.createElement('div')
   btm.style.marginTop = '.4rem'
-  btm.style.display = '.flex'
+  btm.style.display = 'flex'
+  btm.style.flexDirection = 'column'
+  btm.style.alignItems = 'center'
   
 btm.innerHTML =
   '<div class="result-line" id="result-' + matchId + '"></div>' +
@@ -233,20 +235,23 @@ btm.innerHTML =
 
     '<button class="mini-btn" data-role="finish" data-match="' + matchId + '"' +
       ' title="Save match"' +
-      ' style="background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.4);">' +
+      'style="color: #22c55e;gap: 2px;font-size: 10px;display: flex;background:rgba(34,197,94,.12);border: 1px solid #22c55e;flex-direction: column;align-items: center;">' +
         '<img src="save.png" alt="Save" style="width:20px;height:20px;vertical-align:middle;">' +
+		'Save'+
     '</button>' +
 
     '<button class="mini-btn" data-role="undo" data-match="' + matchId + '"' +
       ' title="Undo last action"' +
-      ' style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.3);">' +
+      'style="display: flex;color: #38bdf8;background:rgba(56,189,248,.08);font-size: 10px;border:1px solid rgba(56,189,248,.3);flex-direction: column;align-items: center;gap: 2px">' +
         '<img src="undo.png" alt="Undo" style="width:20px;height:20px;vertical-align:middle;">' +
+		'Undo'+
     '</button>' +
 
     '<button class="mini-btn" data-role="reset" data-match="' + matchId + '"' +
       ' title="Reset match"' +
-      ' style="background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.3);">' +
+      'style="display: flex;color: #f43f5e;background:rgba(244,63,94,.1);font-size: 10px;border:1px solid rgba(244,63,94,.3);flex-direction: column;align-items: center;gap: 2px;">' +
         '<img src="reset.png" alt="Reset" style="width:20px;height:20px;vertical-align:middle;">' +
+		'Reset'+
     '</button>' +
 
   '</div>';
@@ -849,20 +854,23 @@ btm.innerHTML =
 
     '<button class="mini-btn" data-role="finish" data-match="' + matchId + '"' +
       ' title="Save match"' +
-      ' style="background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.4);">' +
+      'style="color: #22c55e;gap: 2px;font-size: 10px;display: flex;background:rgba(34,197,94,.12);border: 1px solid #22c55e;flex-direction: column;align-items: center;">' +
         '<img src="save.png" alt="Save" style="width:20px;height:20px;vertical-align:middle;">' +
+		'Save'+
     '</button>' +
 
     '<button class="mini-btn" data-role="undo" data-match="' + matchId + '"' +
       ' title="Undo last action"' +
-      ' style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.3);">' +
+      'style="display: flex;color: #38bdf8;background:rgba(56,189,248,.08);font-size: 10px;border:1px solid rgba(56,189,248,.3);flex-direction: column;align-items: center;gap: 2px">' +
         '<img src="undo.png" alt="Undo" style="width:20px;height:20px;vertical-align:middle;">' +
+		'Undo'+
     '</button>' +
 
     '<button class="mini-btn" data-role="reset" data-match="' + matchId + '"' +
       ' title="Reset match"' +
-      ' style="background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.3);">' +
+      'style="display: flex;color: #f43f5e;background:rgba(244,63,94,.1);font-size: 10px;border:1px solid rgba(244,63,94,.3);flex-direction: column;align-items: center;gap: 2px;">' +
         '<img src="reset.png" alt="Reset" style="width:20px;height:20px;vertical-align:middle;">' +
+		'Reset'+
     '</button>' +
 
   '</div>';
