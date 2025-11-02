@@ -222,12 +222,34 @@ function createFixtureCard(matchId, teamAId, teamBId, alloc) {
 
   var btm = document.createElement('div')
   btm.style.marginTop = '.4rem'
+  btm.style.display = '.flex'
+  
 btm.innerHTML =
-  '<div class="result-line" id="result-'+matchId+'"></div>' +
-  '<input class="mom-input" id="mom-'+matchId+'" placeholder="Man of the match" /> ' +
-  '<button class="mini-btn" data-role="finish" data-match="'+matchId+'" style="background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.4);color:#ecfdf3;">Save match</button> ' +
-  '<button class="mini-btn" data-role="undo" data-match="'+matchId+'">Undo last</button> ' +
-  '<button class="mini-btn" data-role="reset" data-match="'+matchId+'" style="background:rgba(244,63,94,.1);border:1px solid rgba(244,63,184,.3);color:#fee2e2;">Reset</button>'
+  '<div class="result-line" id="result-' + matchId + '"></div>' +
+  '<input class="mom-input" id="mom-' + matchId + '" placeholder="Man of the match" />' +
+
+  // new div wrapper for the action buttons
+  '<div class="match-actions" style="display:flex;gap:.5rem;margin-top:.4rem;justify-content: center;">' +
+
+    '<button class="mini-btn" data-role="finish" data-match="' + matchId + '"' +
+      ' title="Save match"' +
+      ' style="background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.4);">' +
+        '<img src="save.png" alt="Save" style="width:20px;height:20px;vertical-align:middle;">' +
+    '</button>' +
+
+    '<button class="mini-btn" data-role="undo" data-match="' + matchId + '"' +
+      ' title="Undo last action"' +
+      ' style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.3);">' +
+        '<img src="undo.png" alt="Undo" style="width:20px;height:20px;vertical-align:middle;">' +
+    '</button>' +
+
+    '<button class="mini-btn" data-role="reset" data-match="' + matchId + '"' +
+      ' title="Reset match"' +
+      ' style="background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.3);">' +
+        '<img src="reset.png" alt="Reset" style="width:20px;height:20px;vertical-align:middle;">' +
+    '</button>' +
+
+  '</div>';
 
   card.appendChild(head)
   card.appendChild(wrap)
@@ -246,58 +268,94 @@ function createInningsPanel(matchId, team, allocation, opponentTeam, opponentAll
 
   var panel = document.createElement('div')
   panel.className = 'score-panel'
-  panel.innerHTML =
-    '<p class="muted" style="margin:0 0 .3rem;font-size:.62rem;">' +
-      teamLogoHTML(team, 28) +
-      team.name + ' batting' +
-    '</p>' +
-    '<div class="score-row">' +
-      '<label>Total</label>' +
-      '<div class="score-badge" id="total-'+matchId+'-'+team.id+'">0</div>' +
+panel.innerHTML =
+  '<p class="muted" style="margin:0 0 .3rem;font-size:.62rem;display:flex;gap:.35rem;align-items:center;">' +
+    teamLogoHTML(team, 28) +
+    '<span>'+team.name+' batting</span>' +
+  '</p>' +
+
+  // total
+  '<div class="score-row">' +
+    '<label>Total</label>' +
+    '<div class="score-badge" id="total-'+matchId+'-'+team.id+'">0</div>' +
+  '</div>' +
+
+  // extras
+  '<div class="score-row">' +
+    '<label>Extras</label>' +
+    '<div class="score-badge" id="extras-'+matchId+'-'+team.id+'">0</div>' +
+    '<button class="mini-btn" data-role="add-extra" data-match="'+matchId+'" data-team="'+team.id+'">+1</button>' +
+  '</div>' +
+
+  // overs
+  '<div class="score-row">' +
+    '<label>Over</label>' +
+    '<div class="score-badge" id="over-'+matchId+'-'+team.id+'">0.0</div>' +
+    '<span class="muted" style="font-size:.55rem;">(3 balls)</span>' +
+  '</div>' +
+
+  // batters
+  '<div class="players-run" style="margin-top:.35rem;">' +
+    '<div>' +
+      '<h5 id="p1name-'+matchId+'-'+team.id+'">'+captain+'</h5>' +
+      '<div class="muted" id="p1runs-'+matchId+'-'+team.id+'">0 runs</div>' +
+      '<div style="display:flex;gap:.25rem;margin-top:.25rem;flex-wrap:wrap;justify-content:space-between;">' +
+        runBtnsHTML(matchId, team.id, "p1") +
+      '</div>' +
     '</div>' +
-    '<div class="score-row">' +
-      '<label>Extras</label>' +
-      '<div class="score-badge" id="extras-'+matchId+'-'+team.id+'">0</div>' +
-      '<button class="mini-btn" data-role="add-extra" data-match="'+matchId+'" data-team="'+team.id+'">+1</button>' +
+    '<div>' +
+      '<h5 id="p2name-'+matchId+'-'+team.id+'">'+vice+'</h5>' +
+      '<div class="muted" id="p2runs-'+matchId+'-'+team.id+'">0 runs</div>' +
+      '<div style="display:flex;gap:.25rem;margin-top:.25rem;flex-wrap:wrap;justify-content:space-between;">' +
+        runBtnsHTML(matchId, team.id, "p2") +
+      '</div>' +
     '</div>' +
-    '<div class="score-row">' +
-      '<label>Over</label>' +
-      '<div class="score-badge" id="over-'+matchId+'-'+team.id+'">0.0</div>' +
-      '<span class="muted" style="font-size:.55rem;">(3 balls)</span>' +
-    '</div>' +
-    '<div class="players-run" style="margin-top:.35rem;">' +
+  '</div>' +
+
+  // bowling block
+  '<div class="bowling-wrap" style="margin-top:.45rem;">' +
+    '<h6 style="margin-bottom:.35rem;">Wickets by '+oppName+'</h6>' +
+
+    '<div class="bowler-line">' +
+      '<span>'+oCap+'</span>' +
       '<div>' +
-        '<h5 id="p1name-'+matchId+'-'+team.id+'">'+captain+'</h5>' +
-        '<div class="muted" id="p1runs-'+matchId+'-'+team.id+'">0 runs</div>' +
-        '<div style="display:flex;gap:.25rem;margin-top:.25rem;flex-wrap:wrap;justify-content: space-around;">' +
-          runBtnsHTML(matchId, team.id, 'p1') +
-        '</div>' +
-      '</div>' +
-      '<div>' +
-        '<h5 id="p2name-'+matchId+'-'+team.id+'">'+vice+'</h5>' +
-        '<div class="muted" id="p2runs-'+matchId+'-'+team.id+'">0 runs</div>' +
-        '<div style="display:flex;gap:.25rem;margin-top:.25rem;flex-wrap:wrap;justify-content: space-around;">' +
-          runBtnsHTML(matchId, team.id, 'p2') +
-        '</div>' +
+        '<button class="mini-btn" data-role="add-wicket" data-match="'+matchId+'" data-team="'+oppId+'" data-bowler="p1">+1</button> ' +
+        '<span class="muted" id="wb-'+matchId+'-'+oppId+'-p1">0</span>' +
       '</div>' +
     '</div>' +
-    '<div class="bowling-wrap">' +
-      '<h6>Wickets by '+oppName+'</h6>' +
-      '<div class="bowler-line">' +
-        '<span>'+oCap+'</span>' +
-        '<div>' +
-          '<button class="mini-btn" data-role="add-wicket" data-match="'+matchId+'" data-team="'+oppId+'" data-bowler="p1">+1</button> ' +
-          '<span class="muted" id="wb-'+matchId+'-'+oppId+'-p1">0</span>' +
-        '</div>' +
+
+    '<div class="bowler-line">' +
+      '<span>'+oVice+'</span>' +
+      '<div>' +
+        '<button class="mini-btn" data-role="add-wicket" data-match="'+matchId+'" data-team="'+oppId+'" data-bowler="p2">+1</button> ' +
+        '<span class="muted" id="wb-'+matchId+'-'+oppId+'-p2">0</span>' +
       '</div>' +
-      '<div class="bowler-line">' +
-        '<span>'+oVice+'</span>' +
-        '<div>' +
-          '<button class="mini-btn" data-role="add-wicket" data-match="'+matchId+'" data-team="'+oppId+'" data-bowler="p2">+1</button> ' +
-          '<span class="muted" id="wb-'+matchId+'-'+oppId+'-p2">0</span>' +
-        '</div>' +
-      '</div>' +
-    '</div>'
+    '</div>' +
+  '</div>' +
+
+  // local action bar
+// local action bar with image icons
+'<div class="bowling-actions" style="display:flex;gap:.45rem;justify-content:space-evenly;margin-top:.4rem;">' +
+  '<button class="mini-btn" data-role="finish" data-match="'+matchId+'" title="Save match" ' +
+    'style="color: #22c55e;gap: 2px;font-size: 10px;display: flex;background:rgba(34,197,94,.12);border: 1px solid #22c55e;flex-direction: column;align-items: center;">' +
+      '<img src="save.png" alt="Save" style="width:20px;height:20px;vertical-align:middle;">' +
+	  'Save'+
+  '</button>' +
+
+  '<button class="mini-btn" data-role="undo" data-match="'+matchId+'" title="Undo last action" ' +
+    'style="display: flex;color: #38bdf8;background:rgba(56,189,248,.08);font-size: 10px;border:1px solid rgba(56,189,248,.3);flex-direction: column;align-items: center;gap: 2px">' +
+      '<img src="undo.png" alt="Undo" style="width:20px;height:20px;vertical-align:middle;">' +
+	  'Undo'+
+  '</button>' +
+
+  '<button class="mini-btn" data-role="reset" data-match="'+matchId+'" title="Reset match" ' +
+    'style="display: flex;color: #f43f5e;background:rgba(244,63,94,.1);font-size: 10px;border:1px solid rgba(244,63,94,.3);flex-direction: column;align-items: center;gap: 2px;">' +
+      '<img src="reset.png" alt="Reset" style="width:20px;height:20px;vertical-align:middle;">' +
+	'Reset'+
+  '</button>' +
+'</div>';
+
+
 
   return panel
 }
@@ -548,6 +606,40 @@ function finishMatch(matchId) {
   }
 }
 
+function pickManOfMatch(m) {
+  // safety check
+  if (!m || !m.teams) return null;
+
+  var best = { name: null, runs: -1, wkts: -1 };
+
+  m.teams.forEach(function (tid) {
+    var inn = m.innings[tid];
+    var bowl = m.bowling[tid];
+
+    // check both batters
+    ['p1', 'p2'].forEach(function (slot) {
+      var player = inn.players[slot];
+      if (player) {
+        var name = player.name;
+        var runs = player.runs || 0;
+
+        // find wickets taken by same player when bowling
+        var wkts = 0;
+        if (bowl && bowl[slot]) wkts = bowl[slot];
+
+        // pick best (runs first, then wickets)
+        if (
+          runs > best.runs ||
+          (runs === best.runs && wkts > best.wkts)
+        ) {
+          best = { name: name, runs: runs, wkts: wkts };
+        }
+      }
+    });
+  });
+
+  return best.name;
+}
 
 // ----------------------------------------
 // leaderboards
@@ -744,12 +836,37 @@ function createKnockoutFixtureCard(matchId, teamAId, teamBId) {
 
   var btm = document.createElement('div')
   btm.style.marginTop = '.4rem'
+  btm.style.display = 'flex'
+  btm.style.flexDirection = 'column'
+  btm.style.alignItems = 'center'
+
 btm.innerHTML =
-  '<div class="result-line" id="result-'+matchId+'"></div>' +
-  '<input class="mom-input" id="mom-'+matchId+'" placeholder="Man of the match" /> ' +
-  '<button class="mini-btn" data-role="finish" data-match="'+matchId+'" style="background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.4);color:#ecfdf3;">Save match</button> ' +
-  '<button class="mini-btn" data-role="undo" data-match="'+matchId+'">Undo last</button> ' +
-  '<button class="mini-btn" data-role="reset" data-match="'+matchId+'" style="background:rgba(244,63,94,.1);border:1px solid rgba(244,63,184,.3);color:#fee2e2;">Reset</button>'
+  '<div class="result-line" id="result-' + matchId + '"></div>' +
+  '<input class="mom-input" id="mom-' + matchId + '" placeholder="Man of the match" />' +
+
+  // new div wrapper for the action buttons
+  '<div class="match-actions" style="display:flex;gap:.5rem;margin-top:.4rem;justify-content: center;">' +
+
+    '<button class="mini-btn" data-role="finish" data-match="' + matchId + '"' +
+      ' title="Save match"' +
+      ' style="background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.4);">' +
+        '<img src="save.png" alt="Save" style="width:20px;height:20px;vertical-align:middle;">' +
+    '</button>' +
+
+    '<button class="mini-btn" data-role="undo" data-match="' + matchId + '"' +
+      ' title="Undo last action"' +
+      ' style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.3);">' +
+        '<img src="undo.png" alt="Undo" style="width:20px;height:20px;vertical-align:middle;">' +
+    '</button>' +
+
+    '<button class="mini-btn" data-role="reset" data-match="' + matchId + '"' +
+      ' title="Reset match"' +
+      ' style="background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.3);">' +
+        '<img src="reset.png" alt="Reset" style="width:20px;height:20px;vertical-align:middle;">' +
+    '</button>' +
+
+  '</div>';
+
 
   card.appendChild(head)
   card.appendChild(wrap)

@@ -197,14 +197,13 @@ th { color: #cbd5f5; text-align: left; }
   font-size: .65rem;
 }
 .mom-input {
+    text-align: center;
     margin-top: .25rem;
-    width: 120px;
     background: rgba(2, 6, 23, .08);
     border: 1px solid rgba(148, 163, 184, .12);
     border-radius: 6px;
     padding: .22rem .35rem;
     font-size: 16px;
-    color: #e2e8f0;
 }
 .bowling-wrap {
   margin-top: .4rem;
