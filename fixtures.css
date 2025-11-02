@@ -198,7 +198,7 @@ th { color: #cbd5f5; text-align: left; }
 }
 .mom-input {
     margin-top: .25rem;
-    width: 180px;
+    width: 120px;
     background: rgba(2, 6, 23, .08);
     border: 1px solid rgba(148, 163, 184, .12);
     border-radius: 6px;
