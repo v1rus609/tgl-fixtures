@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fixture Builder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="fixtures.css" />
+</head>
+<body>
+  <header>
+    <div>
+	    <a class="logohead" href="#">
+        <img src="tgl.png" alt="Icon" style="max-width: 130px;" />
+		</a>
+    </div>
+    <button class="btn" id="runLotteryBtn">🎲 Run Lottery</button>
+  </header>
+
+  <main>
+    <aside class="card">
+      <h3>Teams</h3>
+      <div class="teams" id="teamsBar"></div>
+
+      <h3 style="margin-top:1rem;">Players</h3>
+      <div class="players-list" id="playersPool"></div>
+
+      <h3 style="margin-top:1rem;">Team allocations</h3>
+      <div id="teamAllocations"></div>
+
+      <h3 style="margin-top:1rem;">Points table</h3>
+      <div style="overflow-x:auto;">
+        <table id="pointsTable">
+          <thead>
+            <tr>
+              <th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>Pts</th><th>NRR</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="muted" id="knockoutInfo" style="margin-top:.4rem;"></p>
+		<div id="knockoutFixtures" style="margin-top:.4rem;"></div>
+	  
+
+      <!-- NEW: leaderboards -->
+      <h3 style="margin-top:1rem;">Run leaderboard</h3>
+      <div id="runLeaders" class="leaderboard"></div>
+
+      <h3 style="margin-top:1rem;">Wicket leaderboard</h3>
+      <div id="wicketLeaders" class="leaderboard"></div>
+    </aside>
+
+    <section class="card">
+      <h3>Fixtures & Scorecards</h3>
+      <p class="muted" id="fixtureNote">Click “Run Lottery”.</p>
+      <div class="fixtures" id="fixturesWrap"></div>
+	  
+	    <h4 class="muted" style="margin-top:.7rem;">Knockout</h4>
+  <div class="fixtures" id="knockoutWrap"></div>
+	  
+    </section>
+  </main>
+
+  <script src="fixtures.js"></script>
+</body>
+</html>
