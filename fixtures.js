@@ -121,14 +121,27 @@ function initTableState(order) {
 }
 
 function fixturePairs() {
+  var ids = teams.map(t => t.id)
+  var n = ids.length
+  if (n % 2 !== 0) ids.push('BYE') // if odd teams
+  var rounds = n - 1
   var pairs = []
-  for (var i=0;i<teams.length;i++) {
-    for (var j=i+1;j<teams.length;j++) {
-      pairs.push([teams[i].id, teams[j].id])
+
+  for (var r = 0; r < rounds; r++) {
+    for (var i = 0; i < n / 2; i++) {
+      var t1 = ids[i]
+      var t2 = ids[n - 1 - i]
+      if (t1 !== 'BYE' && t2 !== 'BYE') {
+        pairs.push([t1, t2])
+      }
     }
+    // rotate except first
+    ids.splice(1, 0, ids.pop())
   }
+
   return pairs
 }
+
 
 
 // ----------------------------------------

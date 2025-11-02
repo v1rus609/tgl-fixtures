@@ -135,7 +135,7 @@ main {
     background: rgba(226, 232, 240, .04);
     border: 1px solid rgba(148, 163, 184, .25);
     border-radius: 5px;
-    font-size: 15px;
+    font-size: 24px;
     padding: .15rem .4rem;
     cursor: pointer;
 }
