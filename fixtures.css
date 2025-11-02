@@ -140,6 +140,11 @@ main {
     padding: .15rem .4rem;
     cursor: pointer;
 }
+
+#potmLeaders .lb-val {
+  font-weight: 700;
+}
+
 .players-run {
   display: flex;
   gap: .3rem;

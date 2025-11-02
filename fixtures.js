@@ -7,6 +7,11 @@ var teams = [
 ]
 var players = ['Asif','Shovon','Sakib','Omar','Osman','Sunny','Prottoy','Farabi']
 
+// leaderboards
+var runBoard = {}
+var wicketBoard = {}
+var potmBoard = {}   // <--- NEW
+
 var tableState = {}
 var matchState = {}
 var tableOrder = teams.map(function(t){ return t.id })
@@ -602,11 +607,14 @@ function finishMatch(matchId) {
   }
 
   // leaderboards
-  pushRunsToBoard(m, t1)
-  pushRunsToBoard(m, t2)
-  pushWicketsToBoard(matchId, m, t1)
-  pushWicketsToBoard(matchId, m, t2)
-  renderLeaderboards()
+	pushRunsToBoard(m, t1)
+	pushRunsToBoard(m, t2)
+	pushWicketsToBoard(matchId, m, t1)
+	pushWicketsToBoard(matchId, m, t2)
+	pushImpactToBoard(m, t1)
+	pushImpactToBoard(m, t2)
+	renderLeaderboards()
+	renderPOTMBoard()
 
   // auto MOM
   var momName = pickManOfMatch(m)
@@ -632,39 +640,32 @@ function finishMatch(matchId) {
 }
 
 function pickManOfMatch(m) {
-  // safety check
   if (!m || !m.teams) return null;
 
-  var best = { name: null, runs: -1, wkts: -1 };
+  let best = { name: null, score: -1 };
 
-  m.teams.forEach(function (tid) {
-    var inn = m.innings[tid];
-    var bowl = m.bowling[tid];
+  m.teams.forEach(tid => {
+    const inn = m.innings[tid];
+    const bowl = m.bowling[tid];
 
-    // check both batters
-    ['p1', 'p2'].forEach(function (slot) {
-      var player = inn.players[slot];
-      if (player) {
-        var name = player.name;
-        var runs = player.runs || 0;
+    ['p1', 'p2'].forEach(slot => {
+      let name = (inn.players[slot] && inn.players[slot].name) || ('Player ' + slot);
+      let runs = (inn.players[slot] && inn.players[slot].runs) || 0;
+      let wkts = (bowl && bowl[slot]) || 0;
 
-        // find wickets taken by same player when bowling
-        var wkts = 0;
-        if (bowl && bowl[slot]) wkts = bowl[slot];
+      // scoring formula
+      let score = (runs / 4) + wkts;
 
-        // pick best (runs first, then wickets)
-        if (
-          runs > best.runs ||
-          (runs === best.runs && wkts > best.wkts)
-        ) {
-          best = { name: name, runs: runs, wkts: wkts };
-        }
+      if (score > best.score) {
+        best = { name, score, runs, wkts };
       }
     });
   });
 
-  return best.name;
+  return `${best.name} (${best.runs} runs, ${best.wkts} wkts)`;
 }
+
+
 
 // ----------------------------------------
 // leaderboards
@@ -735,6 +736,52 @@ function renderLeaderboards() {
       wicketLeadersEl.appendChild(d2)
     })
   }
+}
+
+	function pushImpactToBoard(matchObj, teamId) {
+	  var inn = matchObj.innings[teamId]
+	  var bowl = matchObj.bowling[teamId]
+
+	  if (!inn || !inn.players) return
+
+	  ;['p1','p2'].forEach(function(slot){
+		// name
+		var name = (inn.players[slot] && inn.players[slot].name) ? inn.players[slot].name : ('Player ' + slot)
+		var runs = (inn.players[slot] && inn.players[slot].runs) ? inn.players[slot].runs : 0
+		var wkts = (bowl && typeof bowl[slot] === 'number') ? bowl[slot] : 0
+
+		// your formula: 4 runs = 1, 1 wicket = 1
+		var impact = (runs / 4) + wkts
+
+		if (!potmBoard[name]) potmBoard[name] = 0
+		potmBoard[name] += impact
+	  })
+	}
+	
+	function renderPOTMBoard() {
+  var potmEl = document.getElementById('potmLeaders')
+  if (!potmEl) return
+
+  var arr = Object.keys(potmBoard).map(function(name){
+    return { name: name, val: potmBoard[name] }
+  })
+
+  arr.sort(function(a,b){ return b.val - a.val })
+
+  potmEl.innerHTML = ''
+  if (arr.length === 0) {
+    potmEl.innerHTML = '<p class="muted">No data yet</p>'
+    return
+  }
+
+  arr.slice(0,3).forEach(function(it){
+    var d = document.createElement('div')
+    d.className = 'lb-item'
+    d.innerHTML =
+      '<span class="lb-name">'+it.name+'</span>' +
+      '<span class="lb-val">'+it.val.toFixed(1)+'</span>'
+    potmEl.appendChild(d)
+  })
 }
 
 
@@ -967,5 +1014,15 @@ renderTeamsBar()
 renderPlayersPool()
 initTableState(tableOrder)
 renderLeaderboards()
+renderPOTMBoard()
 
 document.getElementById('runLotteryBtn').addEventListener('click', runLottery)
+window.addEventListener('beforeunload', function (e) {
+  // Only warn if something meaningful exists (optional)
+  if (Object.keys(matchState).length > 0) {
+    const message = 'Your current match data will be lost if you reload or leave this page.';
+    e.preventDefault();
+    e.returnValue = message; // required for Chrome
+    return message;          // for older browsers
+  }
+});
