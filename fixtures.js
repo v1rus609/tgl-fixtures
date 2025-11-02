@@ -337,16 +337,16 @@ panel.innerHTML =
     '<div class="bowler-line">' +
       '<span>'+oCap+'</span>' +
       '<div>' +
-        '<button class="mini-btn" data-role="add-wicket" data-match="'+matchId+'" data-team="'+oppId+'" data-bowler="p1">+1</button> ' +
-        '<span class="muted" id="wb-'+matchId+'-'+oppId+'-p1">0</span>' +
+		'<span class="muted" id="wb-'+matchId+'-'+oppId+'-p1">0</span>' +
+        '<button class="mini-btn" data-role="add-wicket" data-match="'+matchId+'" data-team="'+oppId+'" data-bowler="p1">+1</button> ' + 
       '</div>' +
     '</div>' +
 
     '<div class="bowler-line">' +
       '<span>'+oVice+'</span>' +
       '<div>' +
-        '<button class="mini-btn" data-role="add-wicket" data-match="'+matchId+'" data-team="'+oppId+'" data-bowler="p2">+1</button> ' +
-        '<span class="muted" id="wb-'+matchId+'-'+oppId+'-p2">0</span>' +
+		'<span class="muted" id="wb-'+matchId+'-'+oppId+'-p2">0</span>' +
+        '<button class="mini-btn" data-role="add-wicket" data-match="'+matchId+'" data-team="'+oppId+'" data-bowler="p2">+1</button> ' +       
       '</div>' +
     '</div>' +
   '</div>' +
@@ -390,25 +390,32 @@ function runBtnsHTML(matchId, teamId, playerSlot) {
 // score events
 // ----------------------------------------
 fixturesWrap.addEventListener('click', function(e){
-  var role = e.target.dataset.role
-  if (!role) return
-  var matchId = e.target.dataset.match
+  // climb up to the element that actually has data-role
+  var el = e.target
+  while (el && el !== fixturesWrap && !el.dataset.role) {
+    el = el.parentNode
+  }
+  if (!el || !el.dataset.role) return
+
+  var role = el.dataset.role
+  var matchId = el.dataset.match
   if (!matchId) return
 
   if (role === 'add-extra') {
-    addExtraRun(matchId, e.target.dataset.team)
+    addExtraRun(matchId, el.dataset.team)
   } else if (role === 'add-run') {
-    addPlayerRun(matchId, e.target.dataset.team, e.target.dataset.player, parseInt(e.target.dataset.runs,10))
+    addPlayerRun(matchId, el.dataset.team, el.dataset.player, parseInt(el.dataset.runs,10))
   } else if (role === 'finish') {
     finishMatch(matchId)
   } else if (role === 'reset') {
     resetMatch(matchId)
   } else if (role === 'add-wicket') {
-    addBowlerWicket(matchId, e.target.dataset.team, e.target.dataset.bowler)
+    addBowlerWicket(matchId, el.dataset.team, el.dataset.bowler)
   } else if (role === 'undo') {
     undoLastAction(matchId)
   }
 })
+
 
 
 function addExtraRun(matchId, teamId) {
