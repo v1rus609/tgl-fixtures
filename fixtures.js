@@ -294,7 +294,7 @@ function createInningsPanel(matchId, team, allocation, opponentTeam, opponentAll
   // make a logo snippet that supports png
   function miniLogoHTML(t) {
     if (t.logoUrl) {
-      return '<span class="logo" style="margin-right:.35rem;"><img src="'+t.logoUrl+'" alt="'+t.name+'" style="width:25%;height:100%;object-fit:cover;" /></span>'
+      return '<span class="logo" style="margin-right:.35rem;"><img src="'+t.logoUrl+'" alt="'+t.name+'" style="width:15%;height:100%;object-fit:cover;" /></span>'
     }
     return '<span class="logo" style="background:'+t.color+';margin-right:.35rem;">'+t.logoText+'</span>'
   }
@@ -341,10 +341,6 @@ function createInningsPanel(matchId, team, allocation, opponentTeam, opponentAll
           '<button class="mini-btn" data-role="add-run" data-match="'+matchId+'" data-team="'+team.id+'" data-player="p2" data-runs="4">4</button>' +
         '</div>' +
       '</div>' +
-    '</div>' +
-    '<div style="margin-top:.45rem;">' +
-      '<label class="muted" style="font-size:.6rem;">Wickets (who took) - text note</label>' +
-      '<textarea data-role="wickets" data-match="'+matchId+'" data-team="'+team.id+'" placeholder="Sunny c Asif b Osman"></textarea>' +
     '</div>' +
     '<div class="bowling-wrap">' +
       '<h6>Wickets by '+oppName+'</h6>' +
@@ -795,8 +791,8 @@ function createKnockoutFixtureCard(matchId, teamAId, teamBId) {
   btm.innerHTML =
     '<div class="result-line" id="result-'+matchId+'"></div>' +
     '<input class="mom-input" id="mom-'+matchId+'" placeholder="Man of the match" /> ' +
-    '<button class="mini-btn" data-role="finish" data-match="'+matchId+'" style="background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.4);color:#ecfdf3;">Save match</button> ' +
-    '<button class="mini-btn" data-role="reset" data-match="'+matchId+'" style="background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.3);color:#fee2e2;">Reset</button>';
+    '<button class="mini-btn" data-role="finish" data-match="'+matchId+'" style="font-size: 15px;background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.4);color:#ecfdf3;">Save match</button> ' +	
+    '<button class="mini-btn" data-role="reset" data-match="'+matchId+'" style="background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.3);font-size:15px;color:#fee2e2;">Reset</button>';
 
   card.appendChild(head);
   card.appendChild(wrap);

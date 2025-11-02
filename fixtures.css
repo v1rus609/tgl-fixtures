@@ -118,26 +118,26 @@ main {
   margin-bottom: .3rem;
 }
 .score-row label {
-  font-size: .62rem;
-  color: var(--muted);
-  min-width: 65px;
+    font-size: 15px;
+    color: var(--muted);
+    min-width: 65px;
 }
 .score-badge {
-  background: rgba(15,23,42,.7);
-  border-radius: 6px;
-  padding: .2rem .4rem;
-  font-weight: 600;
-  font-size: .65rem;
-  flex: 1;
+    background: rgba(15, 23, 42, .7);
+    border-radius: 6px;
+    padding: .2rem .4rem;
+    font-weight: 600;
+    font-size: 16px;
+    flex: 1;
 }
 .mini-btn {
-  color: white;
-  background: rgba(226, 232, 240, .04);
-  border: 1px solid rgba(148, 163, 184, .25);
-  border-radius: 5px;
-  font-size: .6rem;
-  padding: .15rem .4rem;
-  cursor: pointer;
+    color: white;
+    background: rgba(226, 232, 240, .04);
+    border: 1px solid rgba(148, 163, 184, .25);
+    border-radius: 5px;
+    font-size: 15px;
+    padding: .15rem .4rem;
+    cursor: pointer;
 }
 .players-run {
   display: flex;
@@ -172,7 +172,10 @@ th, td {
   padding: .3rem .35rem;
 }
 th { color: #cbd5f5; text-align: left; }
-.muted { color: var(--muted); font-size: .65rem; }
+.muted {
+    color: var(--muted);
+    font-size: 16px;
+}
 
 .leaderboard {
   background: rgba(15,23,42,.18);
@@ -194,14 +197,14 @@ th { color: #cbd5f5; text-align: left; }
   font-size: .65rem;
 }
 .mom-input {
-  margin-top: .25rem;
-  width: 180px;
-  background: rgba(2,6,23,.08);
-  border: 1px solid rgba(148,163,184,.12);
-  border-radius: 6px;
-  padding: .22rem .35rem;
-  font-size: .62rem;
-  color: #e2e8f0;
+    margin-top: .25rem;
+    width: 180px;
+    background: rgba(2, 6, 23, .08);
+    border: 1px solid rgba(148, 163, 184, .12);
+    border-radius: 6px;
+    padding: .22rem .35rem;
+    font-size: 16px;
+    color: #e2e8f0;
 }
 .bowling-wrap {
   margin-top: .4rem;
