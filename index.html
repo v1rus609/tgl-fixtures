@@ -10,9 +10,9 @@
 <body>
   <header>
     <div>
-	    <a class="logohead" href="#">
+      <a class="logohead" href="#">
         <img src="tgl.png" alt="Icon" style="max-width: 130px;" />
-		</a>
+      </a>
     </div>
     <button class="btn" id="runLotteryBtn">🎲 Run Lottery</button>
   </header>
@@ -20,13 +20,32 @@
   <main>
     <aside class="card">
       <h3>Teams</h3>
+
+      <!-- NEW: add team form -->
+      <div class="form-row">
+        <input type="text" id="newTeamName" placeholder="Add team name (e.g. Tigers)" />
+        <button class="btn small" id="addTeamBtn">Add</button>
+      </div>
+      <p class="muted tiny">Add at least 2 teams before running the lottery.</p>
+
       <div class="teams" id="teamsBar"></div>
 
       <h3 style="margin-top:1rem;">Players</h3>
+
+      <!-- NEW: add player form -->
+      <div class="form-row">
+        <input type="text" id="newPlayerName" placeholder="Add player name" />
+        <button class="btn small" id="addPlayerBtn">Add</button>
+      </div>
+      <p class="muted tiny">You need at least 2 players per team for captain & vice.</p>
+
       <div class="players-list" id="playersPool"></div>
 
       <h3 style="margin-top:1rem;">Team allocations</h3>
       <div id="teamAllocations"></div>
+
+	  <h3 style="margin-top:1rem;">Fixture list</h3>
+	  <div id="fixturesList" class="fixture-list"></div>
 
       <h3 style="margin-top:1rem;">Points table</h3>
       <div style="overflow-x:auto;">
@@ -40,29 +59,26 @@
         </table>
       </div>
       <p class="muted" id="knockoutInfo" style="margin-top:.4rem;"></p>
-		<div id="knockoutFixtures" style="margin-top:.4rem;"></div>
-	  
+      <div id="knockoutFixtures" style="margin-top:.4rem;"></div>
 
-      <!-- NEW: leaderboards -->
       <h3 style="margin-top:1rem;">Run leaderboard</h3>
       <div id="runLeaders" class="leaderboard"></div>
 
       <h3 style="margin-top:1rem;">Wicket leaderboard</h3>
       <div id="wicketLeaders" class="leaderboard"></div>
-	  
-	  <h3 style="margin-top:1rem;">POTM rating</h3>
-	  <div id="potmLeaders" class="leaderboard"></div>
-	  
+
+      <h3 style="margin-top:1rem;">POTM rating</h3>
+      <div id="potmLeaders" class="leaderboard"></div>
+
     </aside>
 
     <section class="card">
       <h3>Fixtures & Scorecards</h3>
-      <p class="muted" id="fixtureNote">Click “Run Lottery”.</p>
+      <p class="muted" id="fixtureNote">Add teams & players, then click “Run Lottery”.</p>
       <div class="fixtures" id="fixturesWrap"></div>
-	  
-	    <h4 class="muted" style="margin-top:.7rem;">Knockout</h4>
-  <div class="fixtures" id="knockoutWrap"></div>
-	  
+
+      <h4 class="muted" style="margin-top:.7rem;">Knockout</h4>
+      <div class="fixtures" id="knockoutWrap"></div>
     </section>
   </main>
 

@@ -5,10 +5,10 @@
 }
 * { box-sizing: border-box; }
 body {
-    font-family: poppins;
-    margin: 0;
-    background: #020617;
-    color: #e2e8f0;
+  font-family: poppins;
+  margin: 0;
+  background: #020617;
+  color: #e2e8f0;
 }
 header {
   display: flex;
@@ -41,18 +41,25 @@ main {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* small buttons for forms */
+.btn.small {
+  padding: .25rem .6rem;
+  font-size: .7rem;
+  border-radius: 8px;
+}
+
 .teams { display: flex; gap: .4rem; flex-wrap: wrap; }
 .team-pill {
-    display: flex
-;
-    gap: .4rem;
-    align-items: center;
-    background: rgba(15, 23, 42, .4);
-    border: 1px solid rgba(148, 163, 184, .1);
-    border-radius: 10px;
-    padding: .2rem .6rem;
-    font-size: .7rem;
-    justify-content: center;
+  display: flex;
+  gap: .4rem;
+  align-items: center;
+  background: rgba(15, 23, 42, .4);
+  border: 1px solid rgba(148, 163, 184, .1);
+  border-radius: 10px;
+  padding: .2rem .6rem;
+  font-size: .7rem;
+  justify-content: center;
 }
 
 .players-list {
@@ -118,27 +125,27 @@ main {
   margin-bottom: .3rem;
 }
 .score-row label {
-    font-size: 15px;
-    color: var(--muted);
-    min-width: 65px;
+  font-size: 15px;
+  color: var(--muted);
+  min-width: 65px;
 }
 .score-badge {
-    background: rgba(15, 23, 42, .7);
-    border-radius: 6px;
-    padding: .2rem .4rem;
-    font-weight: 600;
-    font-size: 16px;
-    flex: 1;
+  background: rgba(15, 23, 42, .7);
+  border-radius: 6px;
+  padding: .2rem .4rem;
+  font-weight: 600;
+  font-size: 16px;
+  flex: 1;
 }
 .mini-btn {
-    margin-left: 5px;
-    color: white;
-    background: rgba(226, 232, 240, .04);
-    border: 1px solid rgba(148, 163, 184, .25);
-    border-radius: 5px;
-    font-size: 24px;
-    padding: .15rem .4rem;
-    cursor: pointer;
+  margin-left: 5px;
+  color: white;
+  background: rgba(226, 232, 240, .04);
+  border: 1px solid rgba(148, 163, 184, .25);
+  border-radius: 5px;
+  font-size: 24px;
+  padding: .15rem .4rem;
+  cursor: pointer;
 }
 
 #potmLeaders .lb-val {
@@ -150,19 +157,19 @@ main {
   gap: .3rem;
 }
 .players-run > div {
-    flex: 1;
-    background: rgba(15, 23, 42, .2);
-    border: 1px solid rgba(148, 163, 184, .03);
-    display: flex;
-    border-radius: 6px;
-    padding: .25rem .3rem .4rem;
-    flex-direction: column;
-    align-items: center;
+  flex: 1;
+  background: rgba(15, 23, 42, .2);
+  border: 1px solid rgba(148, 163, 184, .03);
+  display: flex;
+  border-radius: 6px;
+  padding: .25rem .3rem .4rem;
+  flex-direction: column;
+  align-items: center;
 }
 .players-run h5 {
-    text-transform: uppercase;
-    margin: 0 0 .2rem;
-    font-size: 18px;
+  text-transform: uppercase;
+  margin: 0 0 .2rem;
+  font-size: 18px;
 }
 textarea {
   width: 100%;
@@ -183,8 +190,12 @@ th, td {
 }
 th { color: #cbd5f5; text-align: left; }
 .muted {
-    color: var(--muted);
-    font-size: 16px;
+  color: var(--muted);
+  font-size: 16px;
+}
+.muted.tiny {
+  font-size: 11px;
+  margin-top: .2rem;
 }
 
 .leaderboard {
@@ -203,18 +214,18 @@ th { color: #cbd5f5; text-align: left; }
 .lb-name { color: #e2e8f0; }
 .lb-val { color: #38bdf8; font-weight: 600; }
 .result-line {
-    margin-top: .45rem;
-    font-size: 16px;
+  margin-top: .45rem;
+  font-size: 16px;
 }
 .mom-input {
-    color: #FFEB3B;
-    text-align: center;
-    margin-top: .25rem;
-    background: rgba(2, 6, 23, .08);
-    border: 1px solid rgba(148, 163, 184, .12);
-    border-radius: 6px;
-    padding: .22rem .35rem;
-    font-size: 16px;
+  color: #FFEB3B;
+  text-align: center;
+  margin-top: .25rem;
+  background: rgba(2, 6, 23, .08);
+  border: 1px solid rgba(148, 163, 184, .12);
+  border-radius: 6px;
+  padding: .22rem .35rem;
+  font-size: 16px;
 }
 .bowling-wrap {
   margin-top: .4rem;
@@ -240,4 +251,55 @@ th { color: #cbd5f5; text-align: left; }
   height: 35px;
   object-fit: cover;
   display: block;
+}
+
+/* NEW: inline forms & inputs */
+.form-row {
+  display: flex;
+  gap: .4rem;
+  margin-bottom: .4rem;
+}
+.form-row input[type="text"] {
+  flex: 1;
+  background: rgba(15,23,42,.1);
+  border: 1px solid rgba(148,163,184,.2);
+  border-radius: 8px;
+  padding: .25rem .4rem;
+  color: #e2e8f0;
+  font-size: .75rem;
+}
+.form-row input[type="text"]::placeholder {
+  color: rgba(148,163,184,.9);
+}
+.fixture-list {
+  margin-top: .25rem;
+  background: rgba(15,23,42,.18);
+  border: 1px solid rgba(148,163,184,.05);
+  border-radius: 8px;
+  padding: .4rem .5rem;
+  font-size: .7rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.fixture-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .18rem 0;
+  border-bottom: 1px dashed rgba(148,163,184,.18);
+}
+
+.fixture-list-item:last-child {
+  border-bottom: none;
+}
+
+.fixture-list-item span.code {
+  color: var(--muted);
+  font-size: .65rem;
+  margin-right: .35rem;
+}
+
+.fixture-list-item span.teams {
+  font-weight: 500;
 }
