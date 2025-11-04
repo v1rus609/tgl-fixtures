@@ -303,3 +303,71 @@ th { color: #cbd5f5; text-align: left; }
 .fixture-list-item span.teams {
   font-weight: 500;
 }
+.champ-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, .94);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.champ-overlay.hidden {
+  display: none;
+}
+
+.champ-content {
+  text-align: center;
+  padding: 2rem 2.5rem;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, .95);
+  border: 1px solid rgba(148, 163, 184, .4);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .95);
+}
+
+.champ-fireworks {
+  display: flex;
+  gap: 1.2rem;
+  justify-content: center;
+  margin-bottom: .6rem;
+}
+
+.champ-fireworks span {
+  font-size: 2.4rem;
+  animation: pop 1.2s infinite alternate;
+}
+
+.champ-fireworks span:nth-child(2) {
+  animation-delay: .25s;
+}
+.champ-fireworks span:nth-child(3) {
+  animation-delay: .5s;
+}
+
+#champTitle {
+  margin: 0;
+  font-size: 1.6rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+#champTeam {
+  margin: .35rem 0 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #38bdf8;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+@keyframes pop {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: .6;
+  }
+  100% {
+    transform: translateY(-18px) scale(1.25);
+    opacity: 1;
+  }
+}

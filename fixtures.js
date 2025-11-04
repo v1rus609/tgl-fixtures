@@ -1,7 +1,4 @@
 // ----- DATA -----
-// You still start with your 4 main teams.
-// You can add more from the UI.
-// New teams get random colours and initial logos.
 var teams = [
   { id: 'UMA',   name: 'UMA',       color: '#f97316', logoUrl: 'uma.png' },
   { id: 'NJL',   name: 'NJL',       color: '#38bdf8', logoUrl: 'njl.png' },
@@ -9,49 +6,68 @@ var teams = [
   { id: 'FAKE',  name: 'Fake Taxi', color: '#facc15', logoUrl: 'ft.png' }
 ]
 
-// players now come ONLY from manual input
+// players will be added manually from UI
 var players = []
 
 // leaderboards
-var runBoard   = {}
+var runBoard    = {}
 var wicketBoard = {}
 var potmBoard   = {}
 
-var tableState = {}
-var matchState = {}
-var tableOrder = teams.map(function (t) { return t.id })
-var BALLS_PER_OVER = 3
+// state
+var tableState       = {}
+var matchState       = {}
+var tableOrder       = teams.map(function (t) { return t.id })
+var BALLS_PER_OVER   = 3
+var currentAlloc     = {}
+var currentFinalHost = null
 
-// dom
-var teamsBar          = document.getElementById('teamsBar')
-var playersPool       = document.getElementById('playersPool')
-var teamAllocations   = document.getElementById('teamAllocations')
-var fixturesWrap      = document.getElementById('fixturesWrap')
-var pointsTableBody   = document.querySelector('#pointsTable tbody')
-var knockoutInfo      = document.getElementById('knockoutInfo')
-var fixtureNote       = document.getElementById('fixtureNote')
-var runLeadersEl      = document.getElementById('runLeaders')
-var wicketLeadersEl   = document.getElementById('wicketLeaders')
-var knockoutWrap      = document.getElementById('knockoutWrap')
-var potmLeadersEl     = document.getElementById('potmLeaders')
+// ----- DOM ELEMENTS -----
+var teamsBar         = document.getElementById('teamsBar')
+var playersPool      = document.getElementById('playersPool')
+var teamAllocations  = document.getElementById('teamAllocations')
+var fixturesWrap     = document.getElementById('fixturesWrap')
+var pointsTableBody  = document.querySelector('#pointsTable tbody')
+var knockoutInfo     = document.getElementById('knockoutInfo')
+var fixtureNote      = document.getElementById('fixtureNote')
+var runLeadersEl     = document.getElementById('runLeaders')
+var wicketLeadersEl  = document.getElementById('wicketLeaders')
+var potmLeadersEl    = document.getElementById('potmLeaders')
+var knockoutWrap     = document.getElementById('knockoutWrap')
+var knockoutFixtures = document.getElementById('knockoutFixtures')
+var champOverlay  = document.getElementById('champOverlay')
+var champTeamEl   = document.getElementById('champTeam')
+var closeChampBtn = document.getElementById('closeChamp')
 
-// new inputs
+// optional: simple fixture list in sidebar
+var fixturesListEl   = document.getElementById('fixturesList')
+
+// add team/player controls (if present)
 var addTeamBtn        = document.getElementById('addTeamBtn')
 var newTeamNameInput  = document.getElementById('newTeamName')
 var addPlayerBtn      = document.getElementById('addPlayerBtn')
 var newPlayerNameInput = document.getElementById('newPlayerName')
 
-var currentAlloc = {}
-var currentFinalHost = null
-var fixturesListEl    = document.getElementById('fixturesList')
+
+// ----- SOUND EFFECTS -----
+var sfxFour   = new Audio('four.mp3')
+var sfxWicket = new Audio('wicket.mp3')
+var sfxWin    = new Audio('win.mp3')
+
 
 // ----------------------------------------
 // helpers
 // ----------------------------------------
 function randomColor() {
-  // simple palette so it doesn't look awful
   var palette = ['#f97316', '#38bdf8', '#a855f7', '#22c55e', '#ef4444', '#eab308', '#0ea5e9', '#6366f1']
   return palette[Math.floor(Math.random() * palette.length)]
+}
+
+function shuffle(arr) {
+  return arr
+    .map(function (x) { return { v: x, r: Math.random() } })
+    .sort(function (a, b) { return a.r - b.r })
+    .map(function (o) { return o.v })
 }
 
 function teamLogoHTML(team, sizePx) {
@@ -65,17 +81,10 @@ function teamLogoHTML(team, sizePx) {
   }
   var initials = (team.logoText || team.name.slice(0, 2)).toUpperCase()
   return (
-    '<div class="logo" style="background:'+ (team.color || randomColor()) +';width:'+size+'px;height:'+size+'px;display:flex;align-items:center;justify-content:center;font-weight:600;border-radius:999px;">' +
+    '<div class="logo" style="background:'+(team.color || randomColor())+';width:'+size+'px;height:'+size+'px;display:flex;align-items:center;justify-content:center;font-weight:600;border-radius:999px;">' +
       initials +
     '</div>'
   )
-}
-
-function shuffle(arr) {
-  return arr
-    .map(function (x) { return { v: x, r: Math.random() } })
-    .sort(function (a, b) { return a.r - b.r })
-    .map(function (o) { return o.v })
 }
 
 function renderTeamsBar() {
@@ -102,8 +111,8 @@ function renderPlayersPool(assignedMap) {
 function renderTeamAllocations(alloc) {
   teamAllocations.innerHTML = ''
   teams.forEach(function (t) {
-    var cap = alloc[t.id] && alloc[t.id].captain ? alloc[t.id].captain : '---'
-    var vice = alloc[t.id] && alloc[t.id].vice ? alloc[t.id].vice : '---'
+    var cap  = alloc[t.id] && alloc[t.id].captain ? alloc[t.id].captain : '---'
+    var vice = alloc[t.id] && alloc[t.id].vice    ? alloc[t.id].vice    : '---'
 
     var slot = document.createElement('div')
     slot.className = 'team-slot'
@@ -114,7 +123,6 @@ function renderTeamAllocations(alloc) {
       '</div>' +
       '<div class="muted">Captain: <strong>'+cap+'</strong></div>' +
       '<div class="muted">Vice-Captain: <strong>'+vice+'</strong></div>'
-
     teamAllocations.appendChild(slot)
   })
 }
@@ -139,55 +147,80 @@ function initTableState(order) {
   updatePointsTable()
 }
 
-function fixturePairs() {
-  // Get current team ids
-  var ids = teams.map(function (t) { return t.id })
+function playSfx(audio) {
+  if (!audio) return
+  // restart from beginning so quick repeats still work
+  audio.currentTime = 0
+  audio.play().catch(function () {
+    // ignore autoplay errors, user clicks should be enough
+  })
+}
 
+// ----------------------------------------
+// fixture generation (round-robin, no self matches)
+// ----------------------------------------
+function fixturePairs() {
+  var ids = teams.map(function (t) { return t.id })
   if (ids.length < 2) return []
 
-  // Randomise starting order so UMA isn't always first
+  // shuffle so UMA isn't always first
   ids = shuffle(ids.slice())
 
-  // If odd number of teams, add a BYE
   var BYE = '__BYE__'
   if (ids.length % 2 === 1) {
     ids.push(BYE)
   }
 
-  var n = ids.length
-  var half = n / 2
-  var rounds = n - 1
+  var n       = ids.length
+  var half    = n / 2
+  var rounds  = n - 1
   var schedule = []
-
-  // Work on a copy so we don't touch the original
-  var arr = ids.slice()
+  var arr     = ids.slice()
 
   for (var r = 0; r < rounds; r++) {
     for (var i = 0; i < half; i++) {
       var t1 = arr[i]
       var t2 = arr[n - 1 - i]
-
-      // Skip any BYE games
       if (t1 === BYE || t2 === BYE) continue
-
       schedule.push([t1, t2])
-      // If you ever want round info, store {round:r+1, home:t1, away:t2}
     }
 
-    // Rotate all except the first element
+    // rotate except first
     var fixed = arr[0]
-    var rest = arr.slice(1)
-    rest.unshift(rest.pop())  // last goes to front
+    var rest  = arr.slice(1)
+    rest.unshift(rest.pop())
     arr = [fixed].concat(rest)
   }
 
   return schedule
 }
 
+function renderFixtureList(pairs) {
+  if (!fixturesListEl) return
+  fixturesListEl.innerHTML = ''
+
+  if (!pairs || pairs.length === 0) {
+    fixturesListEl.innerHTML = '<p class="muted tiny">No fixtures yet. Run the lottery.</p>'
+    return
+  }
+
+  pairs.forEach(function (p, index) {
+    var t1 = teams.find(function (t) { return t.id === p[0] })
+    var t2 = teams.find(function (t) { return t.id === p[1] })
+    if (!t1 || !t2) return
+
+    var row = document.createElement('div')
+    row.className = 'fixture-list-item'
+    row.innerHTML =
+      '<span class="code">M'+(index+1)+'</span>' +
+      '<span class="teams">'+t1.name+' vs '+t2.name+'</span>'
+    fixturesListEl.appendChild(row)
+  })
+}
 
 
 // ----------------------------------------
-// add team / add player controls
+// add team / player from UI
 // ----------------------------------------
 function normaliseTeamId(name) {
   var base = (name || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
@@ -203,21 +236,26 @@ function normaliseTeamId(name) {
 }
 
 function addTeamFromInput() {
+  if (!newTeamNameInput) return
   var name = (newTeamNameInput.value || '').trim()
   if (!name) return
+
   var id = normaliseTeamId(name)
   teams.push({
     id: id,
     name: name,
     color: randomColor()
   })
+
   newTeamNameInput.value = ''
   renderTeamsBar()
 }
 
 function addPlayerFromInput() {
+  if (!newPlayerNameInput) return
   var name = (newPlayerNameInput.value || '').trim()
   if (!name) return
+
   players.push(name)
   newPlayerNameInput.value = ''
   renderPlayersPool()
@@ -232,6 +270,7 @@ function runLottery() {
     alert('Add at least 2 teams before running the lottery.')
     return
   }
+
   if (players.length < teams.length * 2) {
     alert('You need at least 2 players per team (captain & vice).')
     return
@@ -249,8 +288,8 @@ function runLottery() {
     assignedMap[p1] = true
     assignedMap[p2] = true
   })
-  currentAlloc = allocations
 
+  currentAlloc = allocations
   renderTeamAllocations(allocations)
   renderPlayersPool(assignedMap)
 
@@ -258,14 +297,32 @@ function runLottery() {
   initTableState(tableOrder)
 
   generateFixtures(allocations)
-
   if (knockoutWrap) knockoutWrap.innerHTML = ''
+  if (knockoutFixtures) knockoutFixtures.innerHTML = ''
+  knockoutInfo.textContent = ''
   fixtureNote.textContent = ''
+}
+
+function showChampionCelebration(winnerTeamId) {
+  if (!champOverlay || !champTeamEl) return
+
+  var team = teams.find(function (t) { return t.id === winnerTeamId })
+  var name = team ? team.name : winnerTeamId
+
+  champTeamEl.textContent = name
+  champOverlay.classList.remove('hidden')
+
+  // auto hide after 10 seconds
+  setTimeout(function () {
+    if (!champOverlay.classList.contains('hidden')) {
+      champOverlay.classList.add('hidden')
+    }
+  }, 100000)
 }
 
 
 // ----------------------------------------
-// fixtures (unchanged logic, works for any team count)
+// fixtures & cards
 // ----------------------------------------
 function createEmptyMatch(teamA, teamB) {
   var m = {
@@ -283,31 +340,6 @@ function createEmptyMatch(teamA, teamB) {
   return m
 }
 
-function renderFixtureList(pairs) {
-  if (!fixturesListEl) return
-
-  fixturesListEl.innerHTML = ''
-
-  if (!pairs || pairs.length === 0) {
-    fixturesListEl.innerHTML = '<p class="muted tiny">No fixtures yet. Run the lottery first.</p>'
-    return
-  }
-
-  pairs.forEach(function (p, index) {
-    var teamA = teams.find(function (t) { return t.id === p[0] })
-    var teamB = teams.find(function (t) { return t.id === p[1] })
-    if (!teamA || !teamB) return
-
-    var row = document.createElement('div')
-    row.className = 'fixture-list-item'
-    row.innerHTML =
-      '<span class="code">M'+(index+1)+'</span>' +
-      '<span class="teams">'+teamA.name+' vs '+teamB.name+'</span>'
-    fixturesListEl.appendChild(row)
-  })
-}
-
-
 function generateFixtures(alloc) {
   fixturesWrap.innerHTML = ''
   matchState = {}
@@ -315,7 +347,7 @@ function generateFixtures(alloc) {
 
   var pairs = fixturePairs()
 
-  // NEW: render simple text list in the sidebar
+  // simple fixture list on sidebar
   renderFixtureList(pairs)
 
   pairs.forEach(function (p, index) {
@@ -325,7 +357,6 @@ function generateFixtures(alloc) {
     fixturesWrap.appendChild(card)
   })
 }
-
 
 function createFixtureCard(matchId, teamAId, teamBId, alloc) {
   var teamA = teams.find(function (t) { return t.id === teamAId })
@@ -382,12 +413,12 @@ function createFixtureCard(matchId, teamAId, teamBId, alloc) {
 
 function createInningsPanel(matchId, team, allocation, opponentTeam, opponentAlloc) {
   var captain = allocation && allocation.captain ? allocation.captain : 'Player 1'
-  var vice = allocation && allocation.vice ? allocation.vice : 'Player 2'
+  var vice    = allocation && allocation.vice    ? allocation.vice    : 'Player 2'
 
-  var oppId = opponentTeam.id
+  var oppId   = opponentTeam.id
   var oppName = opponentTeam.name
-  var oCap = opponentAlloc && opponentAlloc.captain ? opponentAlloc.captain : 'Bowler 1'
-  var oVice = opponentAlloc && opponentAlloc.vice ? opponentAlloc.vice : 'Bowler 2'
+  var oCap    = opponentAlloc && opponentAlloc.captain ? opponentAlloc.captain : 'Bowler 1'
+  var oVice   = opponentAlloc && opponentAlloc.vice    ? opponentAlloc.vice    : 'Bowler 2'
 
   var panel = document.createElement('div')
   panel.className = 'score-panel'
@@ -473,16 +504,16 @@ function runBtnsHTML(matchId, teamId, playerSlot) {
 
 
 // ----------------------------------------
-// score events
+// click handling for BOTH league & knockout
 // ----------------------------------------
-fixturesWrap.addEventListener('click', function (e) {
+function handleMatchClick(e, rootEl) {
   var el = e.target
-  while (el && el !== fixturesWrap && !el.dataset.role) {
+  while (el && el !== rootEl && !el.dataset.role) {
     el = el.parentNode
   }
   if (!el || !el.dataset.role) return
 
-  var role = el.dataset.role
+  var role    = el.dataset.role
   var matchId = el.dataset.match
   if (!matchId) return
 
@@ -490,19 +521,34 @@ fixturesWrap.addEventListener('click', function (e) {
     addExtraRun(matchId, el.dataset.team)
   } else if (role === 'add-run') {
     addPlayerRun(matchId, el.dataset.team, el.dataset.player, parseInt(el.dataset.runs, 10))
+  } else if (role === 'add-wicket') {
+    addBowlerWicket(matchId, el.dataset.team, el.dataset.bowler)
   } else if (role === 'finish') {
     finishMatch(matchId)
   } else if (role === 'reset') {
     resetMatch(matchId)
-  } else if (role === 'add-wicket') {
-    addBowlerWicket(matchId, el.dataset.team, el.dataset.bowler)
   } else if (role === 'undo') {
     undoLastAction(matchId)
   }
+}
+
+fixturesWrap.addEventListener('click', function (e) {
+  handleMatchClick(e, fixturesWrap)
 })
 
+if (knockoutWrap) {
+  knockoutWrap.addEventListener('click', function (e) {
+    handleMatchClick(e, knockoutWrap)
+  })
+}
+
+
+// ----------------------------------------
+// scoring helpers
+// ----------------------------------------
 function addExtraRun(matchId, teamId) {
   var m = matchState[matchId]
+  if (!m) return
   m.innings[teamId].extras += 1
   m.history.push({ type: 'extra', teamId: teamId, amount: 1 })
   updateInningsUI(matchId, teamId)
@@ -510,6 +556,7 @@ function addExtraRun(matchId, teamId) {
 
 function addPlayerRun(matchId, teamId, playerSlot, runs) {
   var m = matchState[matchId]
+  if (!m) return
   var inn = m.innings[teamId]
 
   if (!inn.players[playerSlot]) {
@@ -520,6 +567,14 @@ function addPlayerRun(matchId, teamId, playerSlot, runs) {
 
   inn.players[playerSlot].runs += runs
   inn.runs += runs
+  
+  
+  // 🔊 play sound only on 4
+  if (runs === 4) {
+    playSfx(sfxFour)
+  }
+
+  
   inn.balls += 1
 
   var overCompleted = false
@@ -541,10 +596,14 @@ function addPlayerRun(matchId, teamId, playerSlot, runs) {
 
 function addBowlerWicket(matchId, bowlingTeamId, bowlerSlot) {
   var m = matchState[matchId]
+  if (!m) return
   if (!m.bowling[bowlingTeamId]) {
     m.bowling[bowlingTeamId] = { p1:0, p2:0 }
   }
   m.bowling[bowlingTeamId][bowlerSlot] += 1
+  
+    // 🔊 wicket sound
+  playSfx(sfxWicket)
 
   m.history.push({
     type: 'wicket',
@@ -562,12 +621,13 @@ function oversToFloat(overs, balls) {
 }
 
 function updateInningsUI(matchId, teamId) {
-  var m = matchState[matchId]
+  var m   = matchState[matchId]
+  if (!m) return
   var inn = m.innings[teamId]
 
-  document.getElementById('total-'+matchId+'-'+teamId).textContent = inn.runs + inn.extras
+  document.getElementById('total-'+matchId+'-'+teamId).textContent  = inn.runs + inn.extras
   document.getElementById('extras-'+matchId+'-'+teamId).textContent = inn.extras
-  document.getElementById('over-'+matchId+'-'+teamId).textContent = oversToFloat(inn.overs, inn.balls).toFixed(1)
+  document.getElementById('over-'+matchId+'-'+teamId).textContent   = oversToFloat(inn.overs, inn.balls).toFixed(1)
 
   var p1 = inn.players.p1 ? inn.players.p1.runs : 0
   var p2 = inn.players.p2 ? inn.players.p2.runs : 0
@@ -576,18 +636,22 @@ function updateInningsUI(matchId, teamId) {
 }
 
 function resetMatch(matchId) {
-  var m = matchState[matchId]
+  var m  = matchState[matchId]
+  if (!m) return
   var t1 = m.teams[0]
   var t2 = m.teams[1]
+
   matchState[matchId] = createEmptyMatch(t1, t2)
   updateInningsUI(matchId, t1)
   updateInningsUI(matchId, t2)
-  ['p1','p2'].forEach(function (slot) {
+
+  ;['p1','p2'].forEach(function (slot) {
     var s1 = document.getElementById('wb-'+matchId+'-'+t1+'-'+slot)
     var s2 = document.getElementById('wb-'+matchId+'-'+t2+'-'+slot)
     if (s1) s1.textContent = '0'
     if (s2) s2.textContent = '0'
   })
+
   var resultEl = document.getElementById('result-'+matchId)
   if (resultEl) resultEl.textContent = ''
   var momEl = document.getElementById('mom-'+matchId)
@@ -596,7 +660,7 @@ function resetMatch(matchId) {
 
 
 // ----------------------------------------
-// finish match + leaderboards + knockout
+// finish match + leaderboards + knockout trigger
 // ----------------------------------------
 function finishMatch(matchId) {
   var m = matchState[matchId]
@@ -635,21 +699,22 @@ function finishMatch(matchId) {
   }
 
   m.finished = true
-  m.result = result
+  m.result   = result
 
-  if (matchId !== 'PO' && matchId !== 'FINAL') {
+  // league table only for M* matches (not PO/FINAL)
+  if (matchId.startsWith('M')) {
     if (result.tie) {
       tableState[t1].played += 1
       tableState[t2].played += 1
-      tableState[t1].draw += 1
-      tableState[t2].draw += 1
+      tableState[t1].draw   += 1
+      tableState[t2].draw   += 1
       tableState[t1].points += 1
       tableState[t2].points += 1
     } else {
       tableState[result.winner].played += 1
-      tableState[result.loser].played += 1
-      tableState[result.winner].won += 1
-      tableState[result.loser].lost += 1
+      tableState[result.loser].played  += 1
+      tableState[result.winner].won    += 1
+      tableState[result.loser].lost    += 1
       tableState[result.winner].points += 2
     }
 
@@ -667,6 +732,7 @@ function finishMatch(matchId) {
     updatePointsTable()
   }
 
+  // leaderboards (league + knockout)
   pushRunsToBoard(m, t1)
   pushRunsToBoard(m, t2)
   pushWicketsToBoard(matchId, m, t1)
@@ -686,22 +752,39 @@ function finishMatch(matchId) {
       resultEl.textContent = 'Result: Tie'
     } else {
       var winTeam = teams.find(function (x) { return x.id === result.winner })
-      resultEl.textContent = 'Result: ' + winTeam.name + ' ' + result.margin
+      resultEl.textContent = 'Result: ' + (winTeam ? winTeam.name : result.winner) + ' ' + result.margin
+    }
+  }
+  
+    var resultEl = document.getElementById('result-' + matchId)
+  if (resultEl) {
+    if (result.tie) {
+      resultEl.textContent = 'Result: Tie'
+    } else {
+      var winTeam = teams.find(function (x) { return x.id === result.winner })
+      resultEl.textContent = 'Result: ' + (winTeam ? winTeam.name : result.winner) + ' ' + result.margin
     }
   }
 
+  // connect playoff → final
   if (matchId === 'PO' && m.result && !m.result.tie) {
-    var playoffWinnerId = m.result.winner
-    buildFinalAfterPlayoff(playoffWinnerId)
+    buildFinalAfterPlayoff(m.result.winner)
+  }
+
+  // if final match completed with a winner → show fireworks
+  if (matchId === 'FINAL' && !result.tie) {
+    showChampionCelebration(result.winner)
+	playSfx(sfxWin)
   }
 }
 
+
 function pickManOfMatch(m) {
   if (!m || !m.teams) return null
-  var best = { name: null, score: -1, runs: 0, wkts: 0 }
+  var best = { name:null, score:-1, runs:0, wkts:0 }
 
   m.teams.forEach(function (tid) {
-    var inn = m.innings[tid]
+    var inn  = m.innings[tid]
     var bowl = m.bowling[tid]
     ;['p1','p2'].forEach(function (slot) {
       var name = (inn.players[slot] && inn.players[slot].name) || ('Player ' + slot)
@@ -709,7 +792,7 @@ function pickManOfMatch(m) {
       var wkts = (bowl && bowl[slot]) || 0
       var score = (runs / 4) + wkts
       if (score > best.score) {
-        best = { name: name, score: score, runs: runs, wkts: wkts }
+        best = { name:name, score:score, runs:runs, wkts:wkts }
       }
     })
   })
@@ -718,6 +801,10 @@ function pickManOfMatch(m) {
   return best.name + ' ('+best.runs+' runs, '+best.wkts+' wkts)'
 }
 
+
+// ----------------------------------------
+// leaderboards
+// ----------------------------------------
 function pushRunsToBoard(matchObj, teamId) {
   var inn = matchObj.innings[teamId]
   if (!inn.players) return
@@ -750,7 +837,7 @@ function pushWicketsToBoard(matchId, matchObj, teamId) {
 }
 
 function pushImpactToBoard(matchObj, teamId) {
-  var inn = matchObj.innings[teamId]
+  var inn  = matchObj.innings[teamId]
   var bowl = matchObj.bowling[teamId]
   if (!inn || !inn.players) return
 
@@ -767,14 +854,14 @@ function pushImpactToBoard(matchObj, teamId) {
 
 function renderLeaderboards() {
   var runArr = Object.keys(runBoard).map(function (name) {
-    return { name: name, val: runBoard[name] }
-  })
-  runArr.sort(function (a, b) { return b.val - a.val })
+    return { name:name, val:runBoard[name] }
+  }).sort(function (a, b) { return b.val - a.val })
+
   runLeadersEl.innerHTML = ''
   if (runArr.length === 0) {
     runLeadersEl.innerHTML = '<p class="muted tiny">No data yet</p>'
   } else {
-    runArr.slice(0, 5).forEach(function (it) {
+    runArr.slice(0,5).forEach(function (it) {
       var d = document.createElement('div')
       d.className = 'lb-item'
       d.innerHTML = '<span class="lb-name">'+it.name+'</span><span class="lb-val">'+it.val+'</span>'
@@ -783,14 +870,14 @@ function renderLeaderboards() {
   }
 
   var wArr = Object.keys(wicketBoard).map(function (name) {
-    return { name: name, val: wicketBoard[name] }
-  })
-  wArr.sort(function (a, b) { return b.val - a.val })
+    return { name:name, val:wicketBoard[name] }
+  }).sort(function (a, b) { return b.val - a.val })
+
   wicketLeadersEl.innerHTML = ''
   if (wArr.length === 0) {
     wicketLeadersEl.innerHTML = '<p class="muted tiny">No data yet</p>'
   } else {
-    wArr.slice(0, 5).forEach(function (it) {
+    wArr.slice(0,5).forEach(function (it) {
       var d2 = document.createElement('div')
       d2.className = 'lb-item'
       d2.innerHTML = '<span class="lb-name">'+it.name+'</span><span class="lb-val">'+it.val+'</span>'
@@ -800,27 +887,24 @@ function renderLeaderboards() {
 }
 
 function renderPOTMBoard() {
-  var potmEl = potmLeadersEl
-  if (!potmEl) return
-
+  if (!potmLeadersEl) return
   var arr = Object.keys(potmBoard).map(function (name) {
-    return { name: name, val: potmBoard[name] }
-  })
-  arr.sort(function (a, b) { return b.val - a.val })
+    return { name:name, val:potmBoard[name] }
+  }).sort(function (a, b) { return b.val - a.val })
 
-  potmEl.innerHTML = ''
+  potmLeadersEl.innerHTML = ''
   if (arr.length === 0) {
-    potmEl.innerHTML = '<p class="muted tiny">No data yet</p>'
+    potmLeadersEl.innerHTML = '<p class="muted tiny">No data yet</p>'
     return
   }
 
-  arr.slice(0, 3).forEach(function (it) {
+  arr.slice(0,3).forEach(function (it) {
     var d = document.createElement('div')
     d.className = 'lb-item'
     d.innerHTML =
       '<span class="lb-name">'+it.name+'</span>' +
       '<span class="lb-val">'+it.val.toFixed(1)+'</span>'
-    potmEl.appendChild(d)
+    potmLeadersEl.appendChild(d)
   })
 }
 
@@ -831,60 +915,51 @@ function renderPOTMBoard() {
 function calcNRR() {
   Object.keys(tableState).forEach(function (k) {
     var t = tableState[k]
-    var forRate = t.oversFaced > 0 ? (t.runsFor / t.oversFaced) : 0
-    var agRate = t.oversBowled > 0 ? (t.runsAgainst / t.oversBowled) : 0
+    var forRate = t.oversFaced   > 0 ? (t.runsFor     / t.oversFaced)   : 0
+    var agRate  = t.oversBowled  > 0 ? (t.runsAgainst / t.oversBowled)  : 0
     t.nrr = forRate - agRate
   })
 }
 
 function updatePointsTable() {
-  var arr = Object.keys(tableState).map(function (k) { 
-    return tableState[k] 
-  })
+  var arr = Object.keys(tableState).map(function (k) { return tableState[k] })
 
-  // sort by points then NRR
   arr.sort(function (a, b) {
     if (b.points !== a.points) return b.points - a.points
     return b.nrr - a.nrr
   })
 
-  // render table
   pointsTableBody.innerHTML = ''
   arr.forEach(function (t, i) {
     var meta = teams.find(function (x) { return x.id === t.teamId })
     var tr = document.createElement('tr')
     tr.innerHTML =
-      '<td>' + (i + 1) + '</td>' +
-      '<td>' + (meta ? meta.name : t.teamId) + '</td>' +
-      '<td>' + t.played  + '</td>' +
-      '<td>' + t.won     + '</td>' +
-      '<td>' + t.draw    + '</td>' +
-      '<td>' + t.lost    + '</td>' +
-      '<td>' + t.points  + '</td>' +
-      '<td>' + t.nrr.toFixed(2) + '</td>'
+      '<td>'+(i+1)+'</td>'+
+      '<td>'+(meta ? meta.name : t.teamId)+'</td>'+
+      '<td>'+t.played+'</td>'+
+      '<td>'+t.won+'</td>'+
+      '<td>'+t.draw+'</td>'+
+      '<td>'+t.lost+'</td>'+
+      '<td>'+t.points+'</td>'+
+      '<td>'+t.nrr.toFixed(2)+'</td>'
     pointsTableBody.appendChild(tr)
   })
 
-  // ----- KO LOGIC STARTS HERE -----
-
-  // need at least 3 teams to do: 1st → Final, 2nd vs 3rd → Playoff
+  // need at least 3 teams to do 1st→Final and 2nd vs 3rd playoff
   if (arr.length < 3) {
     knockoutInfo.textContent = ''
-    var kf = document.getElementById('knockoutFixtures')
-    if (kf) kf.innerHTML = ''
+    if (knockoutFixtures) knockoutFixtures.innerHTML = ''
     if (knockoutWrap) knockoutWrap.innerHTML = ''
     return
   }
 
-  // check if league is finished (all M* matches completed)
+  // only show knockout AFTER all league matches M* finished
   var leagueMatchIds = Object.keys(matchState).filter(function (id) {
     return id.startsWith('M')
   })
-
   if (leagueMatchIds.length === 0) {
     knockoutInfo.textContent = ''
-    var kf2 = document.getElementById('knockoutFixtures')
-    if (kf2) kf2.innerHTML = ''
+    if (knockoutFixtures) knockoutFixtures.innerHTML = ''
     if (knockoutWrap) knockoutWrap.innerHTML = ''
     return
   }
@@ -894,15 +969,13 @@ function updatePointsTable() {
   }).length
 
   if (finishedLeagueMatches < leagueMatchIds.length) {
-    // league not done yet → hide knockout and wait
     knockoutInfo.textContent = ''
-    var kf3 = document.getElementById('knockoutFixtures')
-    if (kf3) kf3.innerHTML = ''
+    if (knockoutFixtures) knockoutFixtures.innerHTML = ''
     if (knockoutWrap) knockoutWrap.innerHTML = ''
     return
   }
 
-  // league done → take top 3
+  // league done → top 3
   var first  = arr[0]
   var second = arr[1]
   var third  = arr[2]
@@ -917,31 +990,28 @@ function updatePointsTable() {
 
   knockoutInfo.textContent = firstName + ' to Final. ' + secondName + ' vs ' + thirdName + ' playoff.'
 
-  // text cards on the left
   renderKnockoutFixtures(first, second, third)
-
-  // scoreboard cards on the right
   buildKnockoutMatchCards(first.teamId, second.teamId, third.teamId)
 }
 
-
 function renderKnockoutFixtures(first, second, third) {
-  var kf = document.getElementById('knockoutFixtures')
-  if (!kf) return
+  if (!knockoutFixtures) return
+
   var firstTeam  = teams.find(function (t) { return t.id === first.teamId })
   var secondTeam = teams.find(function (t) { return t.id === second.teamId })
   var thirdTeam  = teams.find(function (t) { return t.id === third.teamId })
 
-  kf.innerHTML =
+  knockoutFixtures.innerHTML =
     '<div class="fixture-card" style="margin-top:.35rem;padding:.4rem .5rem;">' +
       '<p class="muted" style="margin:0 0 .25rem;">Playoff</p>' +
-      '<strong>' + secondTeam.name + '</strong> vs <strong>' + thirdTeam.name + '</strong>' +
+      '<strong>' + (secondTeam ? secondTeam.name : second.teamId) + '</strong> vs ' +
+      '<strong>' + (thirdTeam  ? thirdTeam.name  : third.teamId ) + '</strong>' +
       '<p class="muted" style="margin:.25rem 0 0;font-size:.6rem;">Winner → Final</p>' +
     '</div>' +
     '<div class="fixture-card" style="margin-top:.35rem;padding:.4rem .5rem;">' +
       '<p class="muted" style="margin:0 0 .25rem;">Final</p>' +
-      '<strong>' + firstTeam.name + '</strong> vs <strong>Winner of Playoff</strong>' +
-      '<p class="muted" style="margin:.25rem 0 0;font-size:.6rem;">Auto-updates with table</p>' +
+      '<strong>' + (firstTeam ? firstTeam.name : first.teamId) + '</strong> vs <strong>Winner of Playoff</strong>' +
+      '<p class="muted" style="margin:.25rem 0 0;font-size:.6rem;">Auto-updates when playoff finishes</p>' +
     '</div>'
 }
 
@@ -953,7 +1023,6 @@ function buildKnockoutMatchCards(firstId, secondId, thirdId) {
   knockoutWrap.appendChild(playoffCard)
 
   currentFinalHost = firstId
-
   var finalCard = createKnockoutFixtureCard('FINAL', firstId, null)
   knockoutWrap.appendChild(finalCard)
 
@@ -1036,6 +1105,10 @@ function buildFinalAfterPlayoff(playoffWinnerId) {
   matchState['FINAL'] = createEmptyMatch(currentFinalHost, playoffWinnerId)
 }
 
+
+// ----------------------------------------
+// undo
+// ----------------------------------------
 function undoLastAction(matchId) {
   var m = matchState[matchId]
   if (!m || !m.history || m.history.length === 0) return
@@ -1079,7 +1152,16 @@ initTableState(tableOrder)
 renderLeaderboards()
 renderPOTMBoard()
 
-document.getElementById('runLotteryBtn').addEventListener('click', runLottery)
+var runLotteryBtn = document.getElementById('runLotteryBtn')
+if (runLotteryBtn) {
+  runLotteryBtn.addEventListener('click', runLottery)
+}
+
+if (closeChampBtn && champOverlay) {
+  closeChampBtn.addEventListener('click', function () {
+    champOverlay.classList.add('hidden')
+  })
+}
 
 if (addTeamBtn) {
   addTeamBtn.addEventListener('click', addTeamFromInput)
