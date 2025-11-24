@@ -55,9 +55,169 @@ var sfxWicket = new Audio('wicket.mp3')
 var sfxWin    = new Audio('win.mp3')
 
 
+// ----- PERSISTENCE -----
+var STORAGE_KEY = 'tglStateV1'
+
+function saveTournamentState() {
+  try {
+    // only store league matches (M1, M2, ...) to avoid messing with knockout regeneration
+    var safeMatchState = {}
+    Object.keys(matchState).forEach(function (id) {
+      if (id.startsWith('M')) {
+        safeMatchState[id] = matchState[id]
+      }
+    })
+
+    var payload = {
+      teams: teams,
+      players: players,
+      runBoard: runBoard,
+      wicketBoard: wicketBoard,
+      potmBoard: potmBoard,
+      tableState: tableState,
+      tableOrder: tableOrder,
+      currentAlloc: currentAlloc,
+      currentFinalHost: currentFinalHost,
+      matchState: safeMatchState
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+  } catch (e) {
+    console.error('Failed to save tournament state', e)
+  }
+}
+
+function loadTournamentState() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return false
+
+    var data = JSON.parse(raw)
+    if (!data.teams || !data.tableState) return false
+
+    // restore globals
+    teams             = data.teams
+    players           = data.players || []
+    runBoard          = data.runBoard || {}
+    wicketBoard       = data.wicketBoard || {}
+    potmBoard         = data.potmBoard || {}
+    tableState        = data.tableState || {}
+    tableOrder        = data.tableOrder || teams.map(function (t) { return t.id })
+    currentAlloc      = data.currentAlloc || {}
+    currentFinalHost  = data.currentFinalHost || null
+    matchState        = data.matchState || {}
+
+    rebuildUIFromState()
+    return true
+  } catch (e) {
+    console.error('Failed to load tournament state', e)
+    return false
+  }
+}
+
+
 // ----------------------------------------
 // helpers
 // ----------------------------------------
+
+
+function rebuildUIFromState() {
+  // 1) Teams bar
+  renderTeamsBar()
+
+  // 2) Players pool, mark assigned players (captain/vice)
+  var assigned = {}
+  Object.keys(currentAlloc || {}).forEach(function (tid) {
+    var a = currentAlloc[tid]
+    if (!a) return
+    if (a.captain) assigned[a.captain] = true
+    if (a.vice)    assigned[a.vice]    = true
+  })
+  renderPlayersPool(assigned)
+
+  // 3) Team allocations block
+  renderTeamAllocations(currentAlloc)
+
+  // 4) Points table & knockout preview
+  calcNRR()
+  updatePointsTable()
+
+  // 5) Leaderboards
+  renderLeaderboards()
+  renderPOTMBoard()
+
+  // 6) Fixtures & scorecards
+  fixturesWrap.innerHTML = ''
+  var pairs = []
+
+  Object.keys(matchState).sort().forEach(function (matchId) {
+    var m = matchState[matchId]
+    if (!matchId.startsWith('M') || !m || !m.teams) return
+
+    var teamAId = m.teams[0]
+    var teamBId = m.teams[1]
+    pairs.push([teamAId, teamBId])
+
+    // create card
+    var card = createFixtureCard(matchId, teamAId, teamBId, currentAlloc)
+    fixturesWrap.appendChild(card)
+
+    // restore totals for both teams
+    m.teams.forEach(function (tid) {
+      var inn = m.innings[tid]
+      if (!inn) return
+
+      // update UI uses inn.runs / extras / balls / overs already set in matchState
+      updateInningsUI(matchId, tid)
+    })
+
+    // restore wickets for both sides
+    m.teams.forEach(function (bowlingId) {
+      var bowl = m.bowling[bowlingId]
+      if (!bowl) return
+      ;['p1', 'p2'].forEach(function (slot) {
+        var span = document.getElementById('wb-' + matchId + '-' + bowlingId + '-' + slot)
+        if (span && typeof bowl[slot] === 'number') {
+          span.textContent = bowl[slot]
+        }
+      })
+    })
+
+    // restore result text if already finished
+    if (m.finished && m.result) {
+      var resultEl = document.getElementById('result-' + matchId)
+
+      if (resultEl) {
+        if (m.result.tie) {
+          resultEl.textContent = 'Result: Tie'
+        } else {
+          var winTeam = teams.find(function (x) { return x.id === m.result.winner })
+          resultEl.textContent =
+            'Result: ' + (winTeam ? winTeam.name : m.result.winner) + ' ' + m.result.margin
+        }
+      }
+    }
+
+    // 🔁 restore Man of the Match input (from saved state)
+    var momEl = document.getElementById('mom-' + matchId)
+    if (momEl && m.momText) {
+      momEl.value = m.momText
+    }
+  })
+
+  // 7) fixture list in sidebar
+  renderFixtureList(pairs)
+
+  // 8) fixture note
+  if (pairs.length) {
+    fixtureNote.textContent = 'Continue scoring your saved matches.'
+  } else {
+    fixtureNote.textContent = 'Add teams & players, then click “Run Lottery”.'
+  }
+}
+
+
+
 function randomColor() {
   var palette = ['#f97316', '#38bdf8', '#a855f7', '#22c55e', '#ef4444', '#eab308', '#0ea5e9', '#6366f1']
   return palette[Math.floor(Math.random() * palette.length)]
@@ -259,6 +419,7 @@ function addPlayerFromInput() {
   players.push(name)
   newPlayerNameInput.value = ''
   renderPlayersPool()
+  saveTournamentState()
 }
 
 
@@ -301,6 +462,8 @@ function runLottery() {
   if (knockoutFixtures) knockoutFixtures.innerHTML = ''
   knockoutInfo.textContent = ''
   fixtureNote.textContent = ''
+
+  saveTournamentState()
 }
 
 function showChampionCelebration(winnerTeamId) {
@@ -331,14 +494,19 @@ function createEmptyMatch(teamA, teamB) {
     bowling: {},
     history: [],
     finished: false,
-    result: null
+    result: null,
+    _committed: false,   // ✅ comma here
+    momText: ''          // ✅ new field for saved MoTM text
   }
-  m.innings[teamA] = { runs:0, extras:0, balls:0, overs:0, players:{}, wickets:'' }
-  m.innings[teamB] = { runs:0, extras:0, balls:0, overs:0, players:{}, wickets:'' }
-  m.bowling[teamA] = { p1:0, p2:0 }
-  m.bowling[teamB] = { p1:0, p2:0 }
+
+  m.innings[teamA] = { runs: 0, extras: 0, balls: 0, overs: 0, players: {}, wickets: '' }
+  m.innings[teamB] = { runs: 0, extras: 0, balls: 0, overs: 0, players: {}, wickets: '' }
+  m.bowling[teamA] = { p1: 0, p2: 0 }
+  m.bowling[teamB] = { p1: 0, p2: 0 }
+
   return m
 }
+
 
 function generateFixtures(alloc) {
   fixturesWrap.innerHTML = ''
@@ -552,6 +720,7 @@ function addExtraRun(matchId, teamId) {
   m.innings[teamId].extras += 1
   m.history.push({ type: 'extra', teamId: teamId, amount: 1 })
   updateInningsUI(matchId, teamId)
+  saveTournamentState()
 }
 
 function addPlayerRun(matchId, teamId, playerSlot, runs) {
@@ -666,17 +835,26 @@ function finishMatch(matchId) {
   var m = matchState[matchId]
   if (!m) return
 
+  // 🔒 already processed once, ignore extra Save clicks
+  if (m._committed) {
+    return
+  }
+
   var t1 = m.teams[0]
   var t2 = m.teams[1]
 
-  if (!m.bowling[t1]) m.bowling[t1] = { p1:0, p2:0 }
-  if (!m.bowling[t2]) m.bowling[t2] = { p1:0, p2:0 }
+  if (!m.bowling[t1]) m.bowling[t1] = { p1: 0, p2: 0 }
+  if (!m.bowling[t2]) m.bowling[t2] = { p1: 0, p2: 0 }
 
   var t1Score = (m.innings[t1].runs || 0) + (m.innings[t1].extras || 0)
   var t2Score = (m.innings[t2].runs || 0) + (m.innings[t2].extras || 0)
 
-  var t1Overs = (m.innings[t1].overs || 0) + ((m.innings[t1].balls || 0) % BALLS_PER_OVER)/BALLS_PER_OVER
-  var t2Overs = (m.innings[t2].overs || 0) + ((m.innings[t2].balls || 0) % BALLS_PER_OVER)/BALLS_PER_OVER
+  var t1Overs =
+    (m.innings[t1].overs || 0) +
+    ((m.innings[t1].balls || 0) % BALLS_PER_OVER) / BALLS_PER_OVER
+  var t2Overs =
+    (m.innings[t2].overs || 0) +
+    ((m.innings[t2].balls || 0) % BALLS_PER_OVER) / BALLS_PER_OVER
 
   var t1WktsLost = (m.bowling[t2].p1 || 0) + (m.bowling[t2].p2 || 0)
   var t2WktsLost = (m.bowling[t1].p1 || 0) + (m.bowling[t1].p2 || 0)
@@ -699,32 +877,32 @@ function finishMatch(matchId) {
   }
 
   m.finished = true
-  m.result   = result
+  m.result = result
 
   // league table only for M* matches (not PO/FINAL)
   if (matchId.startsWith('M')) {
     if (result.tie) {
       tableState[t1].played += 1
       tableState[t2].played += 1
-      tableState[t1].draw   += 1
-      tableState[t2].draw   += 1
+      tableState[t1].draw += 1
+      tableState[t2].draw += 1
       tableState[t1].points += 1
       tableState[t2].points += 1
     } else {
       tableState[result.winner].played += 1
-      tableState[result.loser].played  += 1
-      tableState[result.winner].won    += 1
-      tableState[result.loser].lost    += 1
+      tableState[result.loser].played += 1
+      tableState[result.winner].won += 1
+      tableState[result.loser].lost += 1
       tableState[result.winner].points += 2
     }
 
-    tableState[t1].runsFor     += t1Score
-    tableState[t1].oversFaced  += t1Overs
+    tableState[t1].runsFor += t1Score
+    tableState[t1].oversFaced += t1Overs
     tableState[t1].runsAgainst += t2Score
     tableState[t1].oversBowled += t2Overs
 
-    tableState[t2].runsFor     += t2Score
-    tableState[t2].oversFaced  += t2Overs
+    tableState[t2].runsFor += t2Score
+    tableState[t2].oversFaced += t2Overs
     tableState[t2].runsAgainst += t1Score
     tableState[t2].oversBowled += t1Overs
 
@@ -742,9 +920,19 @@ function finishMatch(matchId) {
   renderLeaderboards()
   renderPOTMBoard()
 
-  var momName = pickManOfMatch(m)
+  var momName = pickManOfMatch(matchId, m)
   var momEl = document.getElementById('mom-' + matchId)
-  if (momEl && momName) momEl.value = momName
+    // auto-fill only if empty
+  if (momEl && momName && !momEl.value) {
+    momEl.value = momName
+  }
+
+  // store final MoTM text (auto or manual)
+  if (momEl && momEl.value) {
+    m.momText = momEl.value
+  } else if (momName) {
+    m.momText = momName
+  }
 
   var resultEl = document.getElementById('result-' + matchId)
   if (resultEl) {
@@ -752,17 +940,8 @@ function finishMatch(matchId) {
       resultEl.textContent = 'Result: Tie'
     } else {
       var winTeam = teams.find(function (x) { return x.id === result.winner })
-      resultEl.textContent = 'Result: ' + (winTeam ? winTeam.name : result.winner) + ' ' + result.margin
-    }
-  }
-  
-    var resultEl = document.getElementById('result-' + matchId)
-  if (resultEl) {
-    if (result.tie) {
-      resultEl.textContent = 'Result: Tie'
-    } else {
-      var winTeam = teams.find(function (x) { return x.id === result.winner })
-      resultEl.textContent = 'Result: ' + (winTeam ? winTeam.name : result.winner) + ' ' + result.margin
+      resultEl.textContent =
+        'Result: ' + (winTeam ? winTeam.name : result.winner) + ' ' + result.margin
     }
   }
 
@@ -774,32 +953,67 @@ function finishMatch(matchId) {
   // if final match completed with a winner → show fireworks
   if (matchId === 'FINAL' && !result.tie) {
     showChampionCelebration(result.winner)
-	playSfx(sfxWin)
+    playSfx(sfxWin)
+  }
+
+  // mark as committed so we don't double-count if Save is clicked again
+  m._committed = true
+
+// disable all Save buttons for this match
+var saveBtns = document.querySelectorAll(
+  '[data-role="finish"][data-match="' + matchId + '"]'
+)
+saveBtns.forEach(function (btn) {
+  btn.disabled = true
+  btn.textContent = 'Saved'
+})
+
+  if (typeof saveTournamentState === 'function') {
+    saveTournamentState()
   }
 }
 
 
-function pickManOfMatch(m) {
+function pickManOfMatch(matchId, m) {
   if (!m || !m.teams) return null
-  var best = { name:null, score:-1, runs:0, wkts:0 }
+
+  var best = { name: null, score: -1, runs: 0, wkts: 0 }
 
   m.teams.forEach(function (tid) {
     var inn  = m.innings[tid]
     var bowl = m.bowling[tid]
-    ;['p1','p2'].forEach(function (slot) {
-      var name = (inn.players[slot] && inn.players[slot].name) || ('Player ' + slot)
+
+    ;['p1', 'p2'].forEach(function (slot) {
+      if (!inn) return
+
       var runs = (inn.players[slot] && inn.players[slot].runs) || 0
       var wkts = (bowl && bowl[slot]) || 0
+
+      // try stored name first
+      var name = inn.players[slot] && inn.players[slot].name
+
+      // if no stored name (e.g. never batted), read from DOM heading
+      if (!name) {
+        var el = document.getElementById(slot + 'name-' + matchId + '-' + tid)
+        if (el) name = el.textContent
+      }
+
+      // final fallback
+      if (!name) {
+        name = 'Player ' + slot
+      }
+
       var score = (runs / 4) + wkts
       if (score > best.score) {
-        best = { name:name, score:score, runs:runs, wkts:wkts }
+        best = { name: name, score: score, runs: runs, wkts: wkts }
       }
     })
   })
 
   if (!best.name) return null
-  return best.name + ' ('+best.runs+' runs, '+best.wkts+' wkts)'
+  return best.name + ' (' + best.runs + ' runs, ' + best.wkts + ' wkts)'
 }
+
 
 
 // ----------------------------------------
@@ -1143,18 +1357,243 @@ function undoLastAction(matchId) {
 }
 
 
+function exportTournamentPDF() {
+  // basic check: is anything actually played?
+  var matchIds = Object.keys(matchState || {})
+  if (matchIds.length === 0) {
+    alert('No matches found to export. Run the lottery and score some games first.')
+    return
+  }
+
+  // check if league matches are all finished
+  var leagueMatchIds = matchIds.filter(function (id) { return id.startsWith('M') })
+  var unfinishedLeague = leagueMatchIds.filter(function (id) {
+    return !matchState[id].finished
+  })
+
+  if (unfinishedLeague.length > 0) {
+    var ok = confirm(
+      'Some league matches are not marked as finished. Do you still want to export the report?'
+    )
+    if (!ok) return
+  }
+
+  function teamName(id) {
+    var t = teams.find(function (x) { return x.id === id })
+    return t ? t.name : id
+  }
+
+  // build HTML content
+  var html = ''
+  html += '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+  html += '<title>TGL Tournament Summary</title>'
+  html += '<style>'
+  html += 'body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Poppins",sans-serif;margin:20px;color:#0f172a;}'
+  html += 'h1,h2,h3{margin:0 0 .4rem;}'
+  html += 'h1{font-size:22px;}h2{font-size:18px;}h3{font-size:15px;}'
+  html += 'table{border-collapse:collapse;width:100%;margin:8px 0 16px;font-size:12px;}'
+  html += 'th,td{border:1px solid #cbd5f5;padding:4px 6px;text-align:center;}'
+  html += 'th{background:#e5e7eb;}'
+  html += '.section{margin-bottom:18px;}'
+  html += '.muted{color:#6b7280;font-size:11px;}'
+  html += '.match-block{border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;margin-bottom:8px;}'
+  html += '.match-header{font-weight:600;margin-bottom:4px;}'
+  html += '.small{font-size:11px;}'
+  html += '.lb-table td:nth-child(1),.lb-table th:nth-child(1){text-align:left;padding-left:8px;}'
+  html += '</style></head><body>'
+
+  // header
+  html += '<h1>TGL Tournament Summary</h1>'
+  html += '<p class="muted">Generated on ' + new Date().toLocaleString() + '</p>'
+
+  // POINTS TABLE
+  html += '<div class="section">'
+  html += '<h2>Points table</h2>'
+
+  if (Object.keys(tableState).length === 0) {
+    html += '<p class="muted">No table data yet.</p>'
+  } else {
+    var arr = Object.keys(tableState).map(function (k) { return tableState[k] })
+    arr.sort(function (a, b) {
+      if (b.points !== a.points) return b.points - a.points
+      return b.nrr - a.nrr
+    })
+
+    html += '<table><thead><tr>'
+    html += '<th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>Pts</th><th>NRR</th>'
+    html += '</tr></thead><tbody>'
+
+    arr.forEach(function (t, i) {
+      html += '<tr>'
+      html += '<td>' + (i + 1) + '</td>'
+      html += '<td>' + teamName(t.teamId) + '</td>'
+      html += '<td>' + t.played + '</td>'
+      html += '<td>' + t.won + '</td>'
+      html += '<td>' + t.draw + '</td>'
+      html += '<td>' + t.lost + '</td>'
+      html += '<td>' + t.points + '</td>'
+      html += '<td>' + t.nrr.toFixed(2) + '</td>'
+      html += '</tr>'
+    })
+
+    html += '</tbody></table>'
+  }
+  html += '</div>'
+
+  // LEADERBOARDS
+  html += '<div class="section">'
+  html += '<h2>Leaderboards</h2>'
+
+  // runs
+  html += '<h3>Top run scorers</h3>'
+  var runArr = Object.keys(runBoard).map(function (name) {
+    return { name: name, val: runBoard[name] }
+  }).sort(function (a, b) { return b.val - a.val })
+  if (runArr.length === 0) {
+    html += '<p class="muted">No batting data yet.</p>'
+  } else {
+    html += '<table class="lb-table"><thead><tr><th>Player</th><th>Runs</th></tr></thead><tbody>'
+    runArr.forEach(function (it) {
+      html += '<tr><td>' + it.name + '</td><td>' + it.val + '</td></tr>'
+    })
+    html += '</tbody></table>'
+  }
+
+  // wickets
+  html += '<h3>Top wicket takers</h3>'
+  var wArr = Object.keys(wicketBoard).map(function (name) {
+    return { name: name, val: wicketBoard[name] }
+  }).sort(function (a, b) { return b.val - a.val })
+  if (wArr.length === 0) {
+    html += '<p class="muted">No bowling data yet.</p>'
+  } else {
+    html += '<table class="lb-table"><thead><tr><th>Player</th><th>Wickets</th></tr></thead><tbody>'
+    wArr.forEach(function (it) {
+      html += '<tr><td>' + it.name + '</td><td>' + it.val + '</td></tr>'
+    })
+    html += '</tbody></table>'
+  }
+
+  // POTM rating
+  html += '<h3>POTM rating</h3>'
+  var pArr = Object.keys(potmBoard).map(function (name) {
+    return { name: name, val: potmBoard[name] }
+  }).sort(function (a, b) { return b.val - a.val })
+  if (pArr.length === 0) {
+    html += '<p class="muted">No POTM data yet.</p>'
+  } else {
+    html += '<table class="lb-table"><thead><tr><th>Player</th><th>Impact score</th></tr></thead><tbody>'
+    pArr.forEach(function (it) {
+      html += '<tr><td>' + it.name + '</td><td>' + it.val.toFixed(1) + '</td></tr>'
+    })
+    html += '</tbody></table>'
+  }
+
+  html += '</div>'
+
+  // MATCH-BY-MATCH SUMMARY
+  html += '<div class="section">'
+  html += '<h2>Match summary</h2>'
+
+  var sortedMatchIds = Object.keys(matchState).sort()
+  if (sortedMatchIds.length === 0) {
+    html += '<p class="muted">No matches to show.</p>'
+  } else {
+    sortedMatchIds.forEach(function (id) {
+      var m = matchState[id]
+      if (!m || !m.teams || !m.innings) return
+
+      var t1 = m.teams[0]
+      var t2 = m.teams[1]
+      var inn1 = m.innings[t1] || { runs: 0, extras: 0, balls: 0, overs: 0 }
+      var inn2 = m.innings[t2] || { runs: 0, extras: 0, balls: 0, overs: 0 }
+
+      var t1Score = (inn1.runs || 0) + (inn1.extras || 0)
+      var t2Score = (inn2.runs || 0) + (inn2.extras || 0)
+
+      function oversToText(inn) {
+        var balls = inn.balls || 0
+        var overs = inn.overs || 0
+        var rem = balls % BALLS_PER_OVER
+        return (overs + rem / 10).toFixed(1)
+      }
+
+      html += '<div class="match-block">'
+      html += '<div class="match-header">' +
+              id + ' — ' + teamName(t1) + ' vs ' + teamName(t2) + '</div>'
+
+      html += '<div class="small">'
+      html += teamName(t1) + ': <strong>' + t1Score + '</strong> (' + oversToText(inn1) + ' ov)'
+      html += ' &nbsp; | &nbsp; '
+      html += teamName(t2) + ': <strong>' + t2Score + '</strong> (' + oversToText(inn2) + ' ov)'
+      html += '</div>'
+
+      if (m.result) {
+        if (m.result.tie) {
+          html += '<div class="small"><strong>Result:</strong> Tie</div>'
+        } else {
+          html += '<div class="small"><strong>Result:</strong> ' +
+                  teamName(m.result.winner) + ' ' + m.result.margin + '</div>'
+        }
+      } else {
+        html += '<div class="small muted">Result: not finished</div>'
+      }
+
+      // Man of the Match (if typed in UI)
+      var momInputId = 'mom-' + id
+      var momText = ''
+      var momEl = document.getElementById(momInputId)
+      if (momEl && momEl.value) {
+        momText = momEl.value
+      }
+      if (momText) {
+        html += '<div class="small"><strong>Man of the Match:</strong> ' + momText + '</div>'
+      }
+
+      html += '</div>'  // .match-block
+    })
+  }
+
+  html += '</div>' // section
+
+  html += '</body></html>'
+
+  // open in new window and trigger print → PDF
+  var win = window.open('', '_blank')
+  if (!win) {
+    alert('Popup blocked. Please allow popups for this site to export the PDF.')
+    return
+  }
+  win.document.open()
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  win.print()
+}
+
+
 // ----------------------------------------
 // init
 // ----------------------------------------
-renderTeamsBar()
-renderPlayersPool()
-initTableState(tableOrder)
-renderLeaderboards()
-renderPOTMBoard()
+var loaded = loadTournamentState()
+
+if (!loaded) {
+  renderTeamsBar()
+  renderPlayersPool()
+  initTableState(tableOrder)
+  renderLeaderboards()
+  renderPOTMBoard()
+}
 
 var runLotteryBtn = document.getElementById('runLotteryBtn')
 if (runLotteryBtn) {
   runLotteryBtn.addEventListener('click', runLottery)
+}
+
+// NEW:
+var exportPdfBtn = document.getElementById('exportPdfBtn')
+if (exportPdfBtn) {
+  exportPdfBtn.addEventListener('click', exportTournamentPDF)
 }
 
 if (closeChampBtn && champOverlay) {
@@ -1174,6 +1613,12 @@ if (addPlayerBtn) {
   newPlayerNameInput.addEventListener('keypress', function (e) {
     if (e.key === 'Enter') addPlayerFromInput()
   })
+}
+
+function resetTournament() {
+  if (!confirm('Clear all saved data for this tournament?')) return
+  localStorage.removeItem(STORAGE_KEY)
+  location.reload()
 }
 
 window.addEventListener('beforeunload', function (e) {
